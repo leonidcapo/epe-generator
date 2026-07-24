@@ -38,6 +38,33 @@ def test_perfilar_n_por_celda_discapacidad_intelectual_x_tipo_severidad():
     assert perfil.n(("discapacidad_intelectual", "discapacidad_tipo_severidad")) == 2
 
 
+def test_perfilar_n_por_celda_farmacoterapia_excluye_ninguna():
+    # "Ninguna" es un sentinel de "no aplica" (filas 3 y 5), no debe contar como
+    # farmacoterapia presente. Solo filas 4 (Torres, Antihipertensivos) y 6 (Ramos,
+    # Anticonvulsivantes) tienen medicación real.
+    reader = FakeSheetReader(FILAS_SINTETICAS)
+    perfil = perfilar(reader).data
+    # Fila 3 (Fausta Ángeles, Adulto mayor, "Ninguna") no debe contar.
+    assert perfil.n(("adultos_mayores", "farmacoterapia_polifarmacia")) == 0
+    # Fila 5 (Mateo Silva, ninos_preescolares_escolares, "Ninguna") no debe contar.
+    assert perfil.n(("ninos_preescolares_escolares", "farmacoterapia_polifarmacia")) == 0
+    # Fila 4 (Milagros Torres, "Antihipertensivos") sí cuenta: adultos, discapacidad_fisica,
+    # asa3_alto_riesgo.
+    assert perfil.n(("adultos", "farmacoterapia_polifarmacia")) == 1
+    assert perfil.n(("discapacidad_fisica", "farmacoterapia_polifarmacia")) == 1
+    assert perfil.n(("asa3_alto_riesgo", "farmacoterapia_polifarmacia")) == 1
+    # Fila 6 (Valeria Ramos, "Anticonvulsivantes") sí cuenta: adolescentes,
+    # discapacidad_intelectual.
+    assert perfil.n(("adolescentes", "farmacoterapia_polifarmacia")) == 1
+    assert perfil.n(("discapacidad_intelectual", "farmacoterapia_polifarmacia")) == 1
+    # Total de la celda del eje en todo el perfil: exactamente 5 (3 de fila 4 + 2 de fila 6).
+    total = sum(
+        n for (sp, eje), n in perfil.n_por_celda.items()
+        if eje == "farmacoterapia_polifarmacia"
+    )
+    assert total == 5
+
+
 def test_perfilar_cubre_al_menos_5_de_6_ejes_en_scope():
     ejes_en_scope = [
         "riesgo_sistemico_asa",

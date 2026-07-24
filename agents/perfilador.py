@@ -76,7 +76,8 @@ def _ejes_aplicables(fila: dict) -> set[str]:
         ejes.add("cooperacion_manejo_conductual")
     if fila.get("Categorías IMC"):
         ejes.add("estado_nutricional_imc")
-    if fila.get("Farmacoterapia"):
+    farmacoterapia = fila.get("Farmacoterapia")
+    if farmacoterapia and farmacoterapia != "Ninguna":
         ejes.add("farmacoterapia_polifarmacia")
     if fila.get("Procedencia/ Referido de Provincia"):
         ejes.add("procedencia_acceso")
