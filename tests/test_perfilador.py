@@ -19,8 +19,8 @@ def test_perfilar_excluye_columnas_phi():
 def test_perfilar_agrega_distribucion_por_variable():
     reader = FakeSheetReader(FILAS_SINTETICAS)
     perfil = perfilar(reader).data
-    assert perfil.distribuciones["sexo"] == {"F": 2, "M": 1}
-    assert perfil.distribuciones["Riesgo sistémico"] == {"ASA2": 1, "ASA3": 2}
+    assert perfil.distribuciones["sexo"] == {"F": 4, "M": 2}
+    assert perfil.distribuciones["Riesgo sistémico"] == {"ASA2": 1, "ASA3": 3, "ASA1": 2}
 
 
 def test_perfilar_calcula_n_por_celda_subpoblacion_eje():
@@ -28,7 +28,44 @@ def test_perfilar_calcula_n_por_celda_subpoblacion_eje():
     perfil = perfilar(reader).data
     # 2 filas son "Adulto mayor" -> n de la celda (adultos_mayores, riesgo_sistemico_asa) = 2
     assert perfil.n(("adultos_mayores", "riesgo_sistemico_asa")) == 2
-    assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 1
+    assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 2
+
+
+def test_perfilar_n_por_celda_discapacidad_intelectual_x_tipo_severidad():
+    # Filas con Tipo de discapacidad == "Intelectual": fila 1 (Adulto) y fila 6 (Adolescente).
+    reader = FakeSheetReader(FILAS_SINTETICAS)
+    perfil = perfilar(reader).data
+    assert perfil.n(("discapacidad_intelectual", "discapacidad_tipo_severidad")) == 2
+
+
+def test_perfilar_cubre_al_menos_5_de_6_ejes_en_scope():
+    ejes_en_scope = [
+        "riesgo_sistemico_asa",
+        "discapacidad_tipo_severidad",
+        "cooperacion_manejo_conductual",
+        "estado_nutricional_imc",
+        "farmacoterapia_polifarmacia",
+        "procedencia_acceso",
+    ]
+    reader = FakeSheetReader(FILAS_SINTETICAS)
+    perfil = perfilar(reader).data
+    cubiertos = 0
+    for eje_id in ejes_en_scope:
+        total = sum(n for (sp, eje), n in perfil.n_por_celda.items() if eje == eje_id)
+        if total > 0:
+            cubiertos += 1
+    assert cubiertos >= 5
+
+
+def test_perfilar_fila_cuenta_en_dos_subpoblaciones_simultaneamente():
+    # Fila 4 (Milagros Torres) es "Adulto" + Riesgo sistémico "ASA3":
+    # debe contar tanto en adultos como en asa3_alto_riesgo, para el mismo eje.
+    reader = FakeSheetReader(FILAS_SINTETICAS)
+    perfil = perfilar(reader).data
+    assert perfil.n(("adultos", "riesgo_sistemico_asa")) >= 1
+    assert perfil.n(("asa3_alto_riesgo", "riesgo_sistemico_asa")) >= 1
+    assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 2
+    assert perfil.n(("asa3_alto_riesgo", "riesgo_sistemico_asa")) == 3
 
 
 def test_perfilar_descarta_columna_desconocida_no_blocklisteada():
