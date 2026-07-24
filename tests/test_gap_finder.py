@@ -42,37 +42,40 @@ def test_filtrar_factibilidad_descarta_bajo_n_min():
 
 
 def test_rankear_ok_con_llm_disponible():
+    p = _plantilla()
     candidatos = [
         Candidato(eje="riesgo_sistemico_asa", subpoblacion="adultos_mayores", outcome="grado_cooperacion", n_disponible=45),
     ]
     llm = FakeLLMClient(responses=[json.dumps({"score": 8.5, "justificacion": "relevante"})])
     pubmed = FakePubMedClient({})
-    r = rankear(candidatos, pubmed, llm, top_n=5, cap_por_eje=2)
+    r = rankear(candidatos, pubmed, llm, p.terminos_busqueda, top_n=5, cap_por_eje=2)
     assert r.ok
     assert r.data[0]["score_llm"] == 8.5
     assert r.data[0]["novedad"] == 1.0
 
 
 def test_rankear_degrada_sin_llm():
+    p = _plantilla()
     candidatos = [
         Candidato(eje="riesgo_sistemico_asa", subpoblacion="adultos_mayores", outcome="grado_cooperacion", n_disponible=45),
     ]
     llm = FakeLLMClient(fail=True)
     pubmed = FakePubMedClient({})
-    r = rankear(candidatos, pubmed, llm, top_n=5, cap_por_eje=2)
+    r = rankear(candidatos, pubmed, llm, p.terminos_busqueda, top_n=5, cap_por_eje=2)
     assert r.ok
     assert r.data[0]["score_llm"] is None
     assert "degradado" in r.warnings[0].lower() or "LLM" in r.warnings[0]
 
 
 def test_rankear_cap_por_eje_limita_diversidad():
+    p = _plantilla()
     candidatos = [
         Candidato(eje="riesgo_sistemico_asa", subpoblacion=f"pob_{i}", outcome="grado_cooperacion", n_disponible=45)
         for i in range(5)
     ]
     llm = FakeLLMClient(responses=[json.dumps({"score": 9.0, "justificacion": "ok"})])
     pubmed = FakePubMedClient({})
-    r = rankear(candidatos, pubmed, llm, top_n=5, cap_por_eje=2)
+    r = rankear(candidatos, pubmed, llm, p.terminos_busqueda, top_n=5, cap_por_eje=2)
     assert len(r.data) == 5  # segunda pasada completa el resto ignorando el cap
     primeros_dos_ejes = {row["candidato"].eje for row in r.data[:2]}
     assert primeros_dos_ejes == {"riesgo_sistemico_asa"}

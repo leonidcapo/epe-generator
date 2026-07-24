@@ -57,6 +57,32 @@ compatibilidad_eje_subpoblacion:
         load_plantilla(_escribir(tmp_path, contenido))
 
 
+def test_load_plantilla_terminos_busqueda_referencia_id_desconocido(tmp_path):
+    contenido = """
+diseno:
+  inferencia_causal_permitida: false
+  n_min: 30
+ejes:
+  - {id: eje_a, estado: candidato}
+subpoblaciones:
+  - {id: pob_a, estado: candidato}
+outcomes:
+  - {id: out_a, tipo: binario}
+terminos_busqueda:
+  ejes:
+    eje_fantasma: "algo"
+"""
+    with pytest.raises(VocabularioError, match="eje_fantasma"):
+        load_plantilla(_escribir(tmp_path, contenido))
+
+
+def test_load_plantilla_real_carga_terminos_busqueda():
+    p = load_plantilla("knowledge/plantilla_epe.yaml")
+    assert p.terminos_busqueda["ejes"]["riesgo_sistemico_asa"] == "ASA physical status classification"
+    assert p.terminos_busqueda["subpoblaciones"]["adultos_mayores"] == "older adults"
+    assert p.terminos_busqueda["outcomes"]["grado_cooperacion"] == "patient cooperation behavior management"
+
+
 def test_perfil_roundtrip(tmp_path):
     perfil = Perfil(
         n_por_celda={("adultos", "riesgo_sistemico_asa"): 120, ("adultos_mayores", "riesgo_sistemico_asa"): 45},

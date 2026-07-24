@@ -43,3 +43,29 @@ compatibilidad_eje_subpoblacion:
   - {eje: cooperacion_manejo_conductual, subpoblaciones_validas: [ninos_preescolares_escolares, discapacidad_intelectual]}
   - {eje: procedencia_acceso, subpoblaciones_validas: [ninos_preescolares_escolares, adolescentes, adultos, adultos_mayores]}
   - {eje: estado_nutricional_imc, subpoblaciones_validas: [adultos, adultos_mayores]}
+
+# Traducción de ids internos (slugs en español) a frases de búsqueda PubMed-friendly
+# en inglés (la indexación de PubMed es abrumadoramente en inglés). Usadas por
+# agents/novelty_checker.py para construir queries reales en vez de concatenar slugs.
+terminos_busqueda:
+  ejes:
+    riesgo_sistemico_asa: "ASA physical status classification"
+    discapacidad_tipo_severidad: "disability severity"
+    morbilidad_cie11_sistemas: "systemic comorbidity"
+    farmacoterapia_polifarmacia: "polypharmacy"
+    cooperacion_manejo_conductual: "behavior management cooperation"
+    procedencia_acceso: "access to dental care"
+    estado_nutricional_imc: "body mass index nutritional status"
+  subpoblaciones:
+    ninos_preescolares_escolares: "preschool and school-age children"
+    adolescentes: "adolescents"
+    adultos: "adults"
+    adultos_mayores: "older adults"
+    discapacidad_intelectual: "intellectual disability"
+    discapacidad_fisica: "physical disability"
+    discapacidad_sensorial: "sensory disability"
+    asa3_alto_riesgo: "ASA III high-risk patients"
+  outcomes:
+    nivel_tratamiento_requerido: "dental treatment complexity"
+    ubicacion_procedimiento_sop_vs_consultorio: "operating room versus outpatient dental treatment"
+    grado_cooperacion: "patient cooperation behavior management"

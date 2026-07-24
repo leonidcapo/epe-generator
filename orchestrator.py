@@ -40,7 +40,7 @@ def run_propose(plantilla_path: str, perfil_path: str, pubmed_client, llm_client
     perfil = load_perfil(perfil_path)
     espacio = generar_espacio(p, perfil)
     factibles = filtrar_factibilidad(espacio, p)[:max_candidatos]
-    return rankear(factibles, pubmed_client, llm_client, top_n=top_n)
+    return rankear(factibles, pubmed_client, llm_client, p.terminos_busqueda, top_n=top_n)
 
 
 def _make_llm_client_or_none():

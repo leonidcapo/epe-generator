@@ -61,12 +61,13 @@ def _top_diverso(filas: list[dict], top_n: int, cap_por_eje: int) -> list[dict]:
 
 
 def rankear(candidatos: list[Candidato], pubmed_client, llm_client,
+           terminos_busqueda: dict[str, dict[str, str]] | None = None,
            top_n: int = 5, cap_por_eje: int = 2) -> AgentResult:
     warnings: list[str] = []
     filas = []
     llm_degradado = False
     for c in candidatos:
-        novedad, novedad_warnings = score_novedad(c, pubmed_client)
+        novedad, novedad_warnings = score_novedad(c, pubmed_client, terminos_busqueda)
         warnings.extend(novedad_warnings)
         if llm_degradado:
             filas.append({"candidato": c, "score_llm": None, "justificacion": "", "novedad": novedad})
