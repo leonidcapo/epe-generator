@@ -1,1 +1,9 @@
 .worktrees/
+__pycache__/
+*.pyc
+.env
+knowledge/perfil_epe.yaml
+outputs/
+credentials/
+*.json.key
+.pytest_cache/
