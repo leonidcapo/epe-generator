@@ -1,0 +1,45 @@
+# plantilla_epe.yaml
+# ADN metodológico de la cohorte EPE (Servicio de Pacientes Especiales,
+# Depto. de Odontoestomatología, Hospital Nacional PNP "Luis N. Sáenz").
+# Define el espacio combinatorio que agents/gap_finder.py explora para proponer
+# semillas de ideas de investigación primaria (observacional, sin inferencia causal).
+
+diseno:
+  tipo: observacional_analitico_registro_clinico
+  inferencia_causal_permitida: false
+  n_min: 30   # tamaño mínimo de celda: factibilidad estadística + supresión anti-reidentificación
+
+ejes:
+  - {id: riesgo_sistemico_asa, estado: candidato}
+  - {id: discapacidad_tipo_severidad, estado: candidato}
+  - {id: morbilidad_cie11_sistemas, estado: candidato}
+  - {id: farmacoterapia_polifarmacia, estado: candidato}
+  - {id: cooperacion_manejo_conductual, estado: candidato}
+  - {id: procedencia_acceso, estado: candidato}
+  - {id: estado_nutricional_imc, estado: candidato}
+
+subpoblaciones:
+  - {id: ninos_preescolares_escolares, estado: candidato}
+  - {id: adolescentes, estado: candidato}
+  - {id: adultos, estado: candidato}
+  - {id: adultos_mayores, estado: candidato}
+  - {id: discapacidad_intelectual, estado: candidato}
+  - {id: discapacidad_fisica, estado: candidato}
+  - {id: discapacidad_sensorial, estado: candidato}
+  - {id: asa3_alto_riesgo, estado: candidato}
+
+outcomes:
+  - {id: nivel_tratamiento_requerido, tipo: categorico}
+  - {id: ubicacion_procedimiento_sop_vs_consultorio, tipo: binario}
+  - {id: grado_cooperacion, tipo: categorico}
+
+# Qué subpoblaciones tienen sentido clínico para cada eje. gap_finder.py descarta
+# cualquier tupla eje×subpoblación que no aparezca aquí.
+compatibilidad_eje_subpoblacion:
+  - {eje: riesgo_sistemico_asa, subpoblaciones_validas: [adultos, adultos_mayores, asa3_alto_riesgo]}
+  - {eje: discapacidad_tipo_severidad, subpoblaciones_validas: [discapacidad_intelectual, discapacidad_fisica, discapacidad_sensorial]}
+  - {eje: morbilidad_cie11_sistemas, subpoblaciones_validas: [adultos, adultos_mayores, asa3_alto_riesgo]}
+  - {eje: farmacoterapia_polifarmacia, subpoblaciones_validas: [adultos_mayores, asa3_alto_riesgo]}
+  - {eje: cooperacion_manejo_conductual, subpoblaciones_validas: [ninos_preescolares_escolares, discapacidad_intelectual]}
+  - {eje: procedencia_acceso, subpoblaciones_validas: [ninos_preescolares_escolares, adolescentes, adultos, adultos_mayores]}
+  - {eje: estado_nutricional_imc, subpoblaciones_validas: [adultos, adultos_mayores]}
