@@ -67,3 +67,52 @@ def test_orchestrator_main_uso_sin_argumentos(capsys):
     err = capsys.readouterr().err
     assert "perfilar" in err
     assert "propose" in err
+
+
+def test_cmd_propose_con_fallo_no_escribe_y_retorna_1(tmp_path, monkeypatch, capsys):
+    from core.result import AgentResult
+    import orchestrator
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        orchestrator, "run_propose",
+        lambda *a, **k: AgentResult.failure(["motivo de prueba"]),
+    )
+    codigo = orchestrator.main(["propose"])
+    assert codigo == 1
+    salida = capsys.readouterr()
+    assert "motivo de prueba" in salida.err
+    assert not (tmp_path / "outputs").exists()
+
+
+def test_run_perfilar_fallo_cache_con_warnings_vacio_no_crashea(tmp_path, monkeypatch):
+    from core.result import AgentResult
+    import orchestrator
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "knowledge").mkdir()
+    cache_path = tmp_path / "knowledge" / "perfil_epe.yaml"
+    guardar_perfil(Perfil(n_por_celda={("adultos", "riesgo_sistemico_asa"): 99},
+                          distribuciones={}, generado_en="2026-07-01"), str(cache_path))
+    monkeypatch.setattr(
+        orchestrator, "perfilar",
+        lambda reader: AgentResult.failure([]),
+    )
+    r = orchestrator.run_perfilar(FakeSheetReader([], fail=True), out_path=str(cache_path))
+    assert r.ok
+    assert "motivo desconocido" in r.warnings[0]
+
+
+def test_run_perfilar_fallo_sin_cache_warnings_vacio_no_crashea(tmp_path, monkeypatch):
+    from core.result import AgentResult
+    import orchestrator
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "knowledge").mkdir()
+    monkeypatch.setattr(
+        orchestrator, "perfilar",
+        lambda reader: AgentResult.failure([]),
+    )
+    r = orchestrator.run_perfilar(
+        FakeSheetReader([], fail=True),
+        out_path=str(tmp_path / "knowledge" / "perfil_epe.yaml"),
+    )
+    assert not r.ok
+    assert "motivo desconocido" in r.warnings[0]

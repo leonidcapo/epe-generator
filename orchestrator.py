@@ -21,15 +21,16 @@ def run_perfilar(reader: SheetReader, out_path: str = "knowledge/perfil_epe.yaml
         guardar_perfil(r.data, out_path)
         return r
     # perfilar falló (p.ej. sin conexión): degrada al último perfil cacheado si existe.
+    motivo = r.warnings[0] if r.warnings else "motivo desconocido"
     if Path(out_path).exists():
         cacheado = load_perfil(out_path)
         return AgentResult.degraded(
             cacheado,
-            [f"No se pudo leer el Sheet en vivo ({r.warnings[0]}); "
+            [f"No se pudo leer el Sheet en vivo ({motivo}); "
              f"usando perfil cacheado del {cacheado.generado_en}."],
         )
     return AgentResult.failure(
-        [f"No se pudo leer el Sheet y no hay perfil cacheado en {out_path}: {r.warnings[0]}"]
+        [f"No se pudo leer el Sheet y no hay perfil cacheado en {out_path}: {motivo}"]
     )
 
 
@@ -75,6 +76,10 @@ def _cmd_propose() -> int:
         llm = FakeLLMClient(default='{"score": 0, "justificacion": ""}')
     pubmed = make_pubmed_client(os.environ)
     result = run_propose("knowledge/plantilla_epe.yaml", "knowledge/perfil_epe.yaml", pubmed, llm)
+    if not result.ok:
+        for w in result.warnings:
+            print(f"  aviso: {w}", file=sys.stderr)
+        return 1
     md = render_candidatos_md(result.data, result.warnings)
     run_id = time.strftime("%Y%m%d-%H%M%S")
     out = Path("outputs") / run_id / "candidatos.md"
