@@ -70,6 +70,13 @@ def _cmd_perfilar() -> int:
 
 
 def _cmd_propose() -> int:
+    perfil_path = Path("knowledge/perfil_epe.yaml")
+    if not perfil_path.exists():
+        print(
+            "No existe knowledge/perfil_epe.yaml; corre 'python orchestrator.py perfilar' primero.",
+            file=sys.stderr,
+        )
+        return 1
     llm = _make_llm_client_or_none()
     if llm is None:
         from core.llm_client import FakeLLMClient

@@ -7,8 +7,10 @@ from core.knowledge import Perfil
 from core.result import AgentResult
 from core.sheets_client import SheetReader
 
-# Bloqueadas de forma explícita y permanente: ningún cambio aguas abajo debe poder
-# hacer que estas columnas (o sus valores) lleguen a perfil_epe.yaml.
+# Histórico/documental: estas eran las columnas bloqueadas explícitamente antes de
+# pasar a un allow-list. Ya no gobiernan el filtrado (ver _COLUMNAS_PERMITIDAS /
+# _fila_sin_phi más abajo), pero se conservan como referencia de qué es PHI en el
+# Sheet EPE.
 PHI_COLUMNS_EXCLUIDAS = frozenset({
     "Insertar N° de DNI", "Apellidos y Nombres", "N° de HC", "Celular",
     "Fecha de Nacimiento", "Cuidador",
@@ -27,8 +29,14 @@ _VARIABLES_AGREGABLES = (
 )
 
 
+# Allow-list estructural: ninguna columna que no esté aquí llega a filas_limpias,
+# sin importar de dónde venga o si es PHI o no. Cualquier columna futura desconocida
+# se descarta por default (defense-in-depth real, no incidental).
+_COLUMNAS_PERMITIDAS = frozenset(_VARIABLES_AGREGABLES) | {"Grupo etareo", "Riesgo sistémico"}
+
+
 def _fila_sin_phi(fila: dict) -> dict:
-    return {k: v for k, v in fila.items() if k not in PHI_COLUMNS_EXCLUIDAS}
+    return {k: v for k, v in fila.items() if k in _COLUMNAS_PERMITIDAS}
 
 
 def _n_por_celda(filas_limpias: list[dict]) -> dict[tuple[str, str], int]:

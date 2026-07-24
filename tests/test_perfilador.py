@@ -31,6 +31,19 @@ def test_perfilar_calcula_n_por_celda_subpoblacion_eje():
     assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 1
 
 
+def test_perfilar_descarta_columna_desconocida_no_blocklisteada():
+    filas = [dict(f) for f in FILAS_SINTETICAS]
+    for f in filas:
+        f["Direccion"] = "AV FICTICIA 123"
+    reader = FakeSheetReader(filas)
+    r = perfilar(reader)
+    assert r.ok
+    perfil = r.data
+    texto_completo = str(perfil.distribuciones) + str(perfil.n_por_celda)
+    assert "AV FICTICIA" not in texto_completo
+    assert "Direccion" not in texto_completo
+
+
 def test_perfilar_conexion_fallida_produce_failure():
     reader = FakeSheetReader([], fail=True)
     r = perfilar(reader)
