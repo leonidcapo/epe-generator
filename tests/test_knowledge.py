@@ -1,6 +1,6 @@
 import pytest
 
-from core.knowledge import load_plantilla, VocabularioError
+from core.knowledge import load_plantilla, VocabularioError, Perfil, guardar_perfil, load_perfil
 
 
 def _escribir(tmp_path, contenido):
@@ -55,3 +55,22 @@ compatibilidad_eje_subpoblacion:
 """
     with pytest.raises(VocabularioError, match="pob_fantasma"):
         load_plantilla(_escribir(tmp_path, contenido))
+
+
+def test_perfil_roundtrip(tmp_path):
+    perfil = Perfil(
+        n_por_celda={("adultos", "riesgo_sistemico_asa"): 120, ("adultos_mayores", "riesgo_sistemico_asa"): 45},
+        distribuciones={"sexo": {"F": 900, "M": 834}},
+        generado_en="2026-07-24",
+    )
+    path = str(tmp_path / "perfil_epe.yaml")
+    guardar_perfil(perfil, path)
+    cargado = load_perfil(path)
+    assert cargado == perfil
+
+
+def test_perfil_n_por_celda_ausente_devuelve_cero():
+    perfil = Perfil(n_por_celda={("adultos", "riesgo_sistemico_asa"): 10},
+                    distribuciones={}, generado_en="2026-07-24")
+    assert perfil.n(("adolescentes", "riesgo_sistemico_asa")) == 0
+    assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 10
