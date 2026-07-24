@@ -29,9 +29,12 @@ class PubMedClient:
         params = {"db": "pubmed", "term": query, "retmode": "json", "retmax": 0}
         if self._api_key:
             params["api_key"] = self._api_key
-        resp = _requests.get(_ESEARCH_URL, params=params, timeout=30)
-        resp.raise_for_status()
-        return int(resp.json()["esearchresult"]["count"])
+        try:
+            resp = _requests.get(_ESEARCH_URL, params=params, timeout=30)
+            resp.raise_for_status()
+            return int(resp.json()["esearchresult"]["count"])
+        except (_requests.exceptions.RequestException, KeyError, ValueError) as exc:
+            raise ConnectionError(f"fallo al consultar PubMed: {exc}") from exc
 
 
 def make_pubmed_client(env: dict) -> PubMedClient:
