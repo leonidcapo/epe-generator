@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from pathlib import Path
 
 import streamlit as st
 
@@ -15,15 +16,21 @@ from ui_render import render_candidatos_json, render_candidatos_md
 _SECRET_KEYS = ("LLM_PROVIDER", "DEEPSEEK_API_KEY", "DEEPSEEK_MODEL",
                "PUBMED_API_KEY", "AUTH_USER", "AUTH_PASSWORD")
 
+_PLANTILLA = str(Path(__file__).parent / "knowledge" / "plantilla_epe.yaml")
+
 
 def _puente_secrets_a_env() -> None:
     """Copia las claves de st.secrets a os.environ (idempotente, tolerante a
     ausencias). NUNCA incluye GOOGLE_SERVICE_ACCOUNT_JSON ni EPE_SHEET_ID —
     perfilar es exclusivamente local (ver docs/superpowers/specs/
     2026-07-24-streamlit-deploy-design.md, §3)."""
+    try:
+        disponibles = st.secrets
+    except Exception:
+        return  # sin secrets.toml (p.ej. corrida local con .env) — no es un error
     for k in _SECRET_KEYS:
-        if k in st.secrets and k not in os.environ:
-            os.environ[k] = str(st.secrets[k])
+        if k in disponibles and k not in os.environ:
+            os.environ[k] = str(disponibles[k])
 
 
 def _cliente_llm_o_none():
@@ -60,7 +67,7 @@ def vista_propose() -> None:
         "2. Sube aquí el `knowledge/perfil_epe.yaml` que produce.\n"
         "3. Genera candidatos y descarga el resultado."
     )
-    subido = st.file_uploader("Sube perfil_epe.yaml", type="yaml")
+    subido = st.file_uploader("Sube perfil_epe.yaml", type=["yaml", "yml"])
     if not subido:
         return
     if st.button("Generar candidatos"):
@@ -81,21 +88,27 @@ def vista_propose() -> None:
         pubmed_client = make_pubmed_client(os.environ)
 
         try:
-            r = run_propose("knowledge/plantilla_epe.yaml", ruta_perfil,
-                            pubmed_client, llm_client)
+            r = run_propose(_PLANTILLA, ruta_perfil, pubmed_client, llm_client)
+        except Exception as exc:
+            st.error(f"Ocurrió un error generando candidatos: {exc}")
+            return
         finally:
             os.unlink(ruta_perfil)
 
-        for w in r.warnings:
+        st.session_state["resultado"] = (r.data, r.warnings)
+
+    if "resultado" in st.session_state:
+        data, warnings = st.session_state["resultado"]
+        for w in warnings:
             st.warning(w)
-        st.markdown(render_candidatos_md(r.data, r.warnings))
-        if r.data:
+        st.markdown(render_candidatos_md(data, warnings))
+        if data:
             c1, c2 = st.columns(2)
             c1.download_button("Descargar candidatos.md",
-                               render_candidatos_md(r.data, r.warnings),
+                               render_candidatos_md(data, warnings),
                                file_name="candidatos.md")
             c2.download_button("Descargar candidatos.json",
-                               render_candidatos_json(r.data),
+                               render_candidatos_json(data),
                                file_name="candidatos.json", mime="application/json")
 
 

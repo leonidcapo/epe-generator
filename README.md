@@ -41,11 +41,18 @@ local** — su credencial nunca sube a los secrets de Streamlit Cloud.
 1. Corre `python orchestrator.py perfilar` en tu máquina para producir
    `knowledge/perfil_epe.yaml`.
 2. En [share.streamlit.io](https://share.streamlit.io), conecta el repo y apunta a
-   `streamlit_app.py`.
+   `streamlit_app.py`. **Atención:** el tier gratuito de Streamlit Community Cloud requiere
+   que el repo de GitHub sea **público**. Antes de conectarlo, verifica que nada en el árbol
+   lleve credenciales o identificadores: sin `.env`, sin `credentials/`, sin un `EPE_SHEET_ID`
+   real, sin `knowledge/perfil_epe.yaml`. `.env`, `credentials/`, `knowledge/perfil_epe.yaml`
+   y `.streamlit/secrets.toml` ya están en `.gitignore`, así que un clon limpio del repo no
+   los lleva — pero de todas formas confirma con `git ls-files` antes de hacer público el repo.
 3. En **Secrets**, pega `LLM_PROVIDER`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`,
    `PUBMED_API_KEY`, `AUTH_USER`, `AUTH_PASSWORD` (genera credenciales de login nuevas,
-   no reuses las de otros proyectos). **Nunca** pegues `GOOGLE_SERVICE_ACCOUNT_JSON` ni
-   `EPE_SHEET_ID` ahí.
+   no reuses las de otros proyectos, y usa una contraseña **larga y aleatoria**: la app
+   desplegada tiene una URL pública y el formulario de login no tiene límite de intentos,
+   así que un atacante puede probar credenciales sin restricción). **Nunca** pegues
+   `GOOGLE_SERVICE_ACCOUNT_JSON` ni `EPE_SHEET_ID` ahí.
 4. La app queda tras login. Flujo: `perfilar` local → subes `perfil_epe.yaml` en la app →
    `propose` → descargas `candidatos.md`/`.json`.
 
