@@ -7,3 +7,4 @@ outputs/
 credentials/
 *.json.key
 .pytest_cache/
+.streamlit/secrets.toml
