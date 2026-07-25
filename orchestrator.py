@@ -54,7 +54,7 @@ def _make_llm_client_or_none():
 def _cmd_perfilar() -> int:
     credentials = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     sheet_id = os.environ.get("EPE_SHEET_ID")
-    worksheet = os.environ.get("EPE_WORKSHEET_NAME", "Datos")
+    worksheet = os.environ.get("EPE_WORKSHEET_NAME", "Marco")
     if not credentials or not sheet_id:
         print("Faltan GOOGLE_SERVICE_ACCOUNT_JSON y/o EPE_SHEET_ID en el entorno (.env).",
               file=sys.stderr)
