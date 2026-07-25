@@ -14,21 +14,23 @@ def test_perfilar_excluye_columnas_phi():
     # ningún valor de DNI/nombre/celular sobrevive en ninguna distribución
     assert "09900807" not in texto_completo
     assert "REÁTEGUI" not in texto_completo
+    # el DNI usado para deduplicar tampoco debe sobrevivir
+    assert "11111111" not in texto_completo
 
 
 def test_perfilar_agrega_distribucion_por_variable():
     reader = FakeSheetReader(FILAS_SINTETICAS)
     perfil = perfilar(reader).data
-    assert perfil.distribuciones["sexo"] == {"F": 4, "M": 2}
-    assert perfil.distribuciones["Riesgo sistémico"] == {"ASA2": 1, "ASA3": 3, "ASA1": 2}
+    assert perfil.distribuciones["sexo"] == {"F": 4, "M": 3}
+    assert perfil.distribuciones["Riesgo sistémico"] == {"ASA2": 2, "ASA3": 3, "ASA1": 2}
 
 
 def test_perfilar_calcula_n_por_celda_subpoblacion_eje():
     reader = FakeSheetReader(FILAS_SINTETICAS)
     perfil = perfilar(reader).data
-    # 2 filas son "Adulto mayor" -> n de la celda (adultos_mayores, riesgo_sistemico_asa) = 2
     assert perfil.n(("adultos_mayores", "riesgo_sistemico_asa")) == 2
-    assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 2
+    # 3: filas 1 y 4 (Adulto) + fila 8 (Adulto, DNI único tras dedupe)
+    assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 3
 
 
 def test_perfilar_n_por_celda_discapacidad_intelectual_x_tipo_severidad():
@@ -91,7 +93,7 @@ def test_perfilar_fila_cuenta_en_dos_subpoblaciones_simultaneamente():
     perfil = perfilar(reader).data
     assert perfil.n(("adultos", "riesgo_sistemico_asa")) >= 1
     assert perfil.n(("asa3_alto_riesgo", "riesgo_sistemico_asa")) >= 1
-    assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 2
+    assert perfil.n(("adultos", "riesgo_sistemico_asa")) == 3
     assert perfil.n(("asa3_alto_riesgo", "riesgo_sistemico_asa")) == 3
 
 
@@ -120,3 +122,35 @@ def test_perfilar_sheet_vacio_produce_perfil_vacio_sin_crashear():
     r = perfilar(reader)
     assert r.ok
     assert r.data.n_por_celda == {}
+
+
+def test_perfilar_descarta_fila_sin_dni():
+    # Fila 7 (sin DNI) es un registro incompleto: no debe contar en ninguna celda ni
+    # distribución. Su valor sentinel "Indeterminado" (Grado de cooperación) no debe
+    # aparecer en ningún lado.
+    reader = FakeSheetReader(FILAS_SINTETICAS)
+    perfil = perfilar(reader).data
+    texto_completo = str(perfil.distribuciones) + str(perfil.n_por_celda)
+    assert "Indeterminado" not in texto_completo
+    assert perfil.distribuciones["Grado de cooperación"] == {"Positivo": 6, "Negativo": 1}
+
+
+def test_perfilar_deduplica_dni_repetido_se_queda_con_la_primera_fila():
+    # Filas 8 y 9 comparten DNI "11111111" pero tienen "Grado de cooperación"
+    # distinto (Positivo vs Negativo) y sexo distinto (M vs F). Solo la fila 8
+    # (primera aparición) debe sobrevivir.
+    reader = FakeSheetReader(FILAS_SINTETICAS)
+    perfil = perfilar(reader).data
+    # Si la fila 9 (Negativo) se hubiera colado, este total sería 2 en vez de 1.
+    assert perfil.distribuciones["Grado de cooperación"]["Negativo"] == 1
+    # Si la fila 9 (sexo F) se hubiera colado, "F" sería 5 y "M" 2.
+    assert perfil.distribuciones["sexo"] == {"F": 4, "M": 3}
+
+
+def test_perfilar_estado_nutricional_imc_nunca_aparece():
+    # Marco no tiene "Categorías IMC": este eje debe estar estructuralmente ausente
+    # de n_por_celda, no solo en cero para los datos de este fixture.
+    reader = FakeSheetReader(FILAS_SINTETICAS)
+    perfil = perfilar(reader).data
+    ejes_presentes = {eje for (_, eje) in perfil.n_por_celda}
+    assert "estado_nutricional_imc" not in ejes_presentes

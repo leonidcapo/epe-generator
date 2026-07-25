@@ -9,11 +9,11 @@ from core.sheets_client import SheetReader
 
 # Histórico/documental: estas eran las columnas bloqueadas explícitamente antes de
 # pasar a un allow-list. Ya no gobiernan el filtrado (ver _COLUMNAS_PERMITIDAS /
-# _fila_sin_phi más abajo), pero se conservan como referencia de qué es PHI en el
-# Sheet EPE.
+# _fila_sin_phi más abajo), pero se conservan como referencia de qué es PHI en la
+# pestaña "Marco" del Sheet EPE.
 PHI_COLUMNS_EXCLUIDAS = frozenset({
-    "Insertar N° de DNI", "Apellidos y Nombres", "N° de HC", "Celular",
-    "Fecha de Nacimiento", "Cuidador",
+    "Apellidos y Nombres", "N° de DNI", "Celular 1", "Celular 2",
+    "Fecha de nacimiento",
 })
 
 # Grupo etareo -> subpoblación(es) a las que pertenece la fila (1:1 en este caso).
@@ -35,10 +35,10 @@ _MAPA_DISCAPACIDAD_A_SUBPOBLACION = {
 _VARIABLES_AGREGABLES = (
     "sexo", "Grupo etareo", "Riesgo sistémico", "Tipo de discapacidad",
     "Severidad de la discapacidad", "Grado de cooperación",
-    "Ubicación del procedimiento", "Categorías IMC",
+    "Ubicación del procedimiento",
     # Columnas nuevas, requeridas para los ejes farmacoterapia_polifarmacia y
     # procedencia_acceso; también se exponen como distribución.
-    "Farmacoterapia", "Procedencia/ Referido de Provincia",
+    "Farmacoterapia", "Lugar de Procedencia",
 )
 
 
@@ -46,6 +46,21 @@ _VARIABLES_AGREGABLES = (
 # sin importar de dónde venga o si es PHI o no. Cualquier columna futura desconocida
 # se descarta por default (defense-in-depth real, no incidental).
 _COLUMNAS_PERMITIDAS = frozenset(_VARIABLES_AGREGABLES) | {"Grupo etareo", "Riesgo sistémico"}
+
+
+def _filas_con_dni_unico(filas: list[dict]) -> list[dict]:
+    """Descarta filas sin DNI (registros incompletos) y, si un DNI se repite, conserva
+    solo la primera aparición — garantiza 1 fila = 1 paciente incluso si el Marco tiene
+    algún duplicado accidental en el origen."""
+    vistos: set[str] = set()
+    resultado: list[dict] = []
+    for fila in filas:
+        dni = (fila.get("N° de DNI") or "").strip()
+        if not dni or dni in vistos:
+            continue
+        vistos.add(dni)
+        resultado.append(fila)
+    return resultado
 
 
 def _fila_sin_phi(fila: dict) -> dict:
@@ -74,12 +89,10 @@ def _ejes_aplicables(fila: dict) -> set[str]:
         ejes.add("discapacidad_tipo_severidad")
     if fila.get("Grado de cooperación"):
         ejes.add("cooperacion_manejo_conductual")
-    if fila.get("Categorías IMC"):
-        ejes.add("estado_nutricional_imc")
     farmacoterapia = fila.get("Farmacoterapia")
     if farmacoterapia and farmacoterapia != "Ninguna":
         ejes.add("farmacoterapia_polifarmacia")
-    if fila.get("Procedencia/ Referido de Provincia"):
+    if fila.get("Lugar de Procedencia"):
         ejes.add("procedencia_acceso")
     return ejes
 
@@ -101,7 +114,8 @@ def perfilar(reader: SheetReader) -> AgentResult:
     except ConnectionError as exc:
         return AgentResult.failure([str(exc)])
 
-    filas_limpias = [_fila_sin_phi(f) for f in filas]
+    filas_unicas = _filas_con_dni_unico(filas)
+    filas_limpias = [_fila_sin_phi(f) for f in filas_unicas]
 
     distribuciones: dict[str, dict[str, int]] = {}
     for var in _VARIABLES_AGREGABLES:
