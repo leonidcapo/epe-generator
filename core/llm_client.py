@@ -35,7 +35,7 @@ class FakeLLMClient:
 class DeepSeekClient:
     """Cliente para la API de DeepSeek (Chat Completions, compatible con OpenAI)."""
 
-    def __init__(self, api_key: str, model: str = "deepseek-chat",
+    def __init__(self, api_key: str, model: str = "deepseek-v4-flash",
                  base_url: str = "https://api.deepseek.com", max_tokens: int = 2048,
                  temperature: float = 0.4):
         self._api_key = api_key
@@ -70,5 +70,6 @@ def make_client(env: dict):
         api_key = env.get("DEEPSEEK_API_KEY")
         if not api_key:
             raise ValueError("Falta DEEPSEEK_API_KEY en el entorno (.env)")
-        return DeepSeekClient(api_key=api_key)
+        modelo = env.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+        return DeepSeekClient(api_key=api_key, model=modelo)
     raise ValueError(f"LLM_PROVIDER no soportado: {provider} (usa deepseek)")
