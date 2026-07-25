@@ -32,6 +32,25 @@ python orchestrator.py perfilar   # Sheet EPE (vivo) -> knowledge/perfil_epe.yam
 python orchestrator.py propose    # perfil + plantilla -> outputs/<timestamp>/candidatos.{md,json}
 ```
 
+## Deploy en Streamlit Community Cloud
+
+La UI (`streamlit_app.py`) corre solo la fase `propose` en la nube. `perfilar` (necesita la
+credencial de Google con acceso al Sheet EPE, que contiene PHI real) queda **exclusivamente
+local** — su credencial nunca sube a los secrets de Streamlit Cloud.
+
+1. Corre `python orchestrator.py perfilar` en tu máquina para producir
+   `knowledge/perfil_epe.yaml`.
+2. En [share.streamlit.io](https://share.streamlit.io), conecta el repo y apunta a
+   `streamlit_app.py`.
+3. En **Secrets**, pega `LLM_PROVIDER`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`,
+   `PUBMED_API_KEY`, `AUTH_USER`, `AUTH_PASSWORD` (genera credenciales de login nuevas,
+   no reuses las de otros proyectos). **Nunca** pegues `GOOGLE_SERVICE_ACCOUNT_JSON` ni
+   `EPE_SHEET_ID` ahí.
+4. La app queda tras login. Flujo: `perfilar` local → subes `perfil_epe.yaml` en la app →
+   `propose` → descargas `candidatos.md`/`.json`.
+
+La app es sin estado: no persiste nada en el servidor entre subidas.
+
 ## Privacidad
 
 `perfilador.py` es el único punto que toca datos con PHI, y su salida (`perfil_epe.yaml`) es
