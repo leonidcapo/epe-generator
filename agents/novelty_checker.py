@@ -9,11 +9,15 @@ class Candidato:
     eje: str
     subpoblacion: str
     outcome: str
+    covariables_ajuste: tuple[str, ...]
     n_disponible: int
 
 
 def candidato_id(c: Candidato) -> str:
-    return f"{c.eje}_{c.subpoblacion}_{c.outcome}"
+    base = f"{c.eje}_{c.subpoblacion}_{c.outcome}"
+    if not c.covariables_ajuste:
+        return base
+    return f"{base}_adj_{'_'.join(c.covariables_ajuste)}"
 
 
 def _termino(grupo: dict[str, str], id_: str) -> str:
