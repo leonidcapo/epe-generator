@@ -15,8 +15,10 @@ from core.sheets_client import GspreadSheetReader, SheetReader
 from ui_render import render_candidatos_json, render_candidatos_md
 
 
-def run_perfilar(reader: SheetReader, out_path: str = "knowledge/perfil_epe.yaml") -> AgentResult:
-    r = perfilar(reader)
+def run_perfilar(reader: SheetReader, plantilla_path: str = "knowledge/plantilla_epe.yaml",
+                 out_path: str = "knowledge/perfil_epe.yaml") -> AgentResult:
+    plantilla = load_plantilla(plantilla_path)
+    r = perfilar(reader, plantilla)
     if r.ok:
         guardar_perfil(r.data, out_path)
         return r
