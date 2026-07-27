@@ -9,6 +9,11 @@ diseno:
   inferencia_causal_permitida: false
   n_min: 30   # tamaño mínimo de celda: factibilidad estadística + supresión anti-reidentificación
 
+# INVARIANTE: todo eje con estado != sin_datos DEBE tener una columna real que
+# agents/perfilador._ejes_aplicables sepa leer. Si agregas un eje sin columna de
+# datos y lo dejas como 'candidato', el universo conjunto de sus subpoblaciones
+# compatibles se vuelve insatisfacible y esas subpoblaciones quedan en n_conjunto=0
+# silenciosamente (sin error). Marca 'sin_datos' hasta que exista la columna.
 ejes:
   - {id: riesgo_sistemico_asa, estado: candidato}
   - {id: discapacidad_tipo_severidad, estado: candidato}

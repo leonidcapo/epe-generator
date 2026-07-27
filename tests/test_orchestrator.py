@@ -103,6 +103,33 @@ def test_run_propose_produce_candidatos(tmp_path, monkeypatch):
     assert all(row["candidato"].n_disponible >= 30 for row in r.data)
 
 
+def test_run_propose_avisa_perfil_precache_multivariado(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    perfil_path = tmp_path / "perfil.yaml"
+    guardar_perfil(Perfil(n_por_celda={("adultos", "riesgo_sistemico_asa"): 99},
+                          distribuciones={}, generado_en="2026-07-01",
+                          n_conjunto={}), str(perfil_path))
+    llm = FakeLLMClient(default='{"score": 0, "justificacion": ""}')
+    pubmed = FakePubMedClient({})
+    r = orchestrator.run_propose("knowledge/plantilla_epe.yaml", str(perfil_path), pubmed, llm)
+    assert any("n_conjunto" in w and "perfilar" in w for w in r.warnings)
+
+
+def test_run_propose_no_avisa_si_perfil_legitimamente_vacio(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    perfil_path = tmp_path / "perfil.yaml"
+    guardar_perfil(Perfil(n_por_celda={}, distribuciones={}, generado_en="2026-07-01",
+                          n_conjunto={}), str(perfil_path))
+    llm = FakeLLMClient(default='{"score": 0, "justificacion": ""}')
+    pubmed = FakePubMedClient({})
+    r = orchestrator.run_propose("knowledge/plantilla_epe.yaml", str(perfil_path), pubmed, llm)
+    assert not any("n_conjunto" in w for w in r.warnings)
+
+
 def test_orchestrator_main_uso_sin_argumentos(capsys):
     import orchestrator
     assert orchestrator.main([]) == 2
