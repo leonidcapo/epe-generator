@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import yaml
 
@@ -64,11 +64,29 @@ def load_plantilla(path: str) -> Plantilla:
     )
 
 
+def ejes_implementados_por_subpoblacion(p: Plantilla) -> dict[str, frozenset[str]]:
+    """Para cada subpoblación declarada, el universo de ejes compatibles que además tienen
+    datos reales calculados por perfilador (estado != 'sin_datos' en la plantilla). Ejes
+    declarados compatibles pero sin columna de datos (p.ej. morbilidad_cie11_sistemas,
+    estado_nutricional_imc) quedan fuera del universo — de lo contrario el n conjunto
+    exigiría un eje que ninguna fila puede satisfacer jamás, anulando subpoblaciones
+    enteras (adultos, adultos_mayores, asa3_alto_riesgo tienen alguno de estos dos ejes
+    en su set compatible declarado)."""
+    resultado: dict[str, frozenset[str]] = {sp: frozenset() for sp in p.subpoblaciones}
+    for eje, subpoblaciones_validas in p.compatibilidad.items():
+        if p.ejes.get(eje) == "sin_datos":
+            continue
+        for sp in subpoblaciones_validas:
+            resultado[sp] = resultado[sp] | {eje}
+    return resultado
+
+
 @dataclass
 class Perfil:
     n_por_celda: dict[tuple[str, str], int]   # (subpoblacion, eje) -> n
     distribuciones: dict[str, dict[str, int]]  # variable -> {categoria: conteo}
     generado_en: str
+    n_conjunto: dict[str, int] = field(default_factory=dict)  # subpoblacion -> n conjunto
 
     def n(self, celda: tuple[str, str]) -> int:
         return self.n_por_celda.get(celda, 0)
@@ -82,6 +100,7 @@ def guardar_perfil(perfil: Perfil, path: str) -> None:
         ],
         "distribuciones": perfil.distribuciones,
         "generado_en": perfil.generado_en,
+        "n_conjunto": perfil.n_conjunto,
     }
     with open(path, "w", encoding="utf-8") as fh:
         yaml.safe_dump(serializable, fh, allow_unicode=True, sort_keys=False)
@@ -97,4 +116,5 @@ def load_perfil(path: str) -> Perfil:
         n_por_celda=n_por_celda,
         distribuciones=d["distribuciones"],
         generado_en=d["generado_en"],
+        n_conjunto=d.get("n_conjunto", {}),
     )

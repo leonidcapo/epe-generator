@@ -12,11 +12,11 @@ diseno:
 ejes:
   - {id: riesgo_sistemico_asa, estado: candidato}
   - {id: discapacidad_tipo_severidad, estado: candidato}
-  - {id: morbilidad_cie11_sistemas, estado: candidato}
+  - {id: morbilidad_cie11_sistemas, estado: sin_datos}
   - {id: farmacoterapia_polifarmacia, estado: candidato}
   - {id: cooperacion_manejo_conductual, estado: candidato}
   - {id: procedencia_acceso, estado: candidato}
-  - {id: estado_nutricional_imc, estado: candidato}
+  - {id: estado_nutricional_imc, estado: sin_datos}
 
 subpoblaciones:
   - {id: ninos_preescolares_escolares, estado: candidato}
