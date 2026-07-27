@@ -1,29 +1,34 @@
 from __future__ import annotations
 
 import json
-from itertools import product
 
 from agents.novelty_checker import Candidato, score_novedad
-from core.knowledge import Perfil, Plantilla
+from core.knowledge import Perfil, Plantilla, ejes_implementados_por_subpoblacion
 from core.result import AgentResult
 
 _SYSTEM_RANKING = (
     "Eres un epidemiólogo/odontólogo que evalúa huecos de investigación observacional "
-    "sobre una cohorte clínica de pacientes especiales (sin inferencia causal). Responde "
-    'SOLO JSON {"score": <0-10>, "justificacion": "<3-4 líneas, sin lenguaje causal>"}.'
+    "sobre una cohorte clínica de pacientes especiales (sin inferencia causal). Cada "
+    "propuesta es un modelo MULTIVARIADO: una exposición principal ajustada por "
+    'covariables. Responde SOLO JSON {"score": <0-10>, "justificacion": "<3-4 líneas, '
+    'sin lenguaje causal>"}.'
 )
 
 
 def generar_espacio(p: Plantilla, perfil: Perfil) -> list[Candidato]:
     espacio: list[Candidato] = []
-    for eje, subpoblacion, outcome in product(p.ejes, p.subpoblaciones, p.outcomes):
-        validas = p.compatibilidad.get(eje, frozenset())
-        if subpoblacion not in validas:
+    universos = ejes_implementados_por_subpoblacion(p)
+    for subpoblacion, ejes_validos in universos.items():
+        if len(ejes_validos) < 2:
             continue
-        espacio.append(Candidato(
-            eje=eje, subpoblacion=subpoblacion, outcome=outcome,
-            n_disponible=perfil.n((subpoblacion, eje)),
-        ))
+        n_conjunto = perfil.n_conjunto.get(subpoblacion, 0)
+        for eje_principal in sorted(ejes_validos):
+            covariables = tuple(sorted(ejes_validos - {eje_principal}))
+            for outcome in p.outcomes:
+                espacio.append(Candidato(
+                    eje=eje_principal, subpoblacion=subpoblacion, outcome=outcome,
+                    covariables_ajuste=covariables, n_disponible=n_conjunto,
+                ))
     return espacio
 
 
@@ -32,11 +37,14 @@ def filtrar_factibilidad(candidatos: list[Candidato], p: Plantilla) -> list[Cand
 
 
 def _prompt_candidato(c: Candidato) -> str:
+    ajuste = ", ".join(c.covariables_ajuste) if c.covariables_ajuste else "(ninguna)"
     return (
-        f"Eje temático: {c.eje}\nSubpoblación: {c.subpoblacion}\nOutcome propuesto: {c.outcome}\n"
-        f"n disponible en la cohorte: {c.n_disponible}\n"
+        f"Exposición principal: {c.eje}\nSubpoblación: {c.subpoblacion}\n"
+        f"Outcome propuesto: {c.outcome}\nCovariables de ajuste: {ajuste}\n"
+        f"n disponible (conjunto, todas las variables presentes simultáneamente): "
+        f"{c.n_disponible}\n"
         "Evalúa plausibilidad clínica, relevancia y publicabilidad de un estudio "
-        "observacional (prevalencia/asociación) sobre esta combinación."
+        "observacional multivariado (asociación ajustada) sobre esta combinación."
     )
 
 
