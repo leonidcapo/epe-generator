@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import date
 
-from core.knowledge import Perfil
+from core.knowledge import Perfil, Plantilla, ejes_implementados_por_subpoblacion
 from core.result import AgentResult
 from core.sheets_client import SheetReader
 
@@ -108,7 +108,24 @@ def _n_por_celda(filas_limpias: list[dict]) -> dict[tuple[str, str], int]:
     return dict(conteo)
 
 
-def perfilar(reader: SheetReader) -> AgentResult:
+def _n_conjunto(filas_limpias: list[dict], plantilla: Plantilla) -> dict[str, int]:
+    """Para cada subpoblación, cuenta pacientes con dato presente SIMULTÁNEAMENTE en todo
+    su universo de ejes implementados (ver ejes_implementados_por_subpoblacion) — el n
+    conjunto que necesita un modelo multivariado, no el n marginal de un solo eje.
+    Universos vacíos o de un solo eje se computan igual (0 o su n marginal); es tarea de
+    gap_finder decidir que <2 no genera candidatos multivariados."""
+    universos = ejes_implementados_por_subpoblacion(plantilla)
+    conteo: dict[str, int] = {sp: 0 for sp in universos}
+    for fila in filas_limpias:
+        ejes_fila = _ejes_aplicables(fila)
+        for sp in _subpoblaciones(fila):
+            universo = universos.get(sp)
+            if universo and universo <= ejes_fila:
+                conteo[sp] += 1
+    return conteo
+
+
+def perfilar(reader: SheetReader, plantilla: Plantilla) -> AgentResult:
     try:
         filas = reader.leer_filas()
     except ConnectionError as exc:
@@ -127,5 +144,6 @@ def perfilar(reader: SheetReader) -> AgentResult:
         n_por_celda=_n_por_celda(filas_limpias),
         distribuciones=distribuciones,
         generado_en=date.today().isoformat(),
+        n_conjunto=_n_conjunto(filas_limpias, plantilla),
     )
     return AgentResult.success(perfil)
