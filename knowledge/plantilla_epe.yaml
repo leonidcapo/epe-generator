@@ -34,9 +34,9 @@ subpoblaciones:
   - {id: asa3_alto_riesgo, estado: candidato}
 
 outcomes:
-  - {id: nivel_tratamiento_requerido, tipo: categorico}
-  - {id: ubicacion_procedimiento_sop_vs_consultorio, tipo: binario}
-  - {id: grado_cooperacion, tipo: categorico}
+  - {id: nivel_tratamiento_requerido, tipo: categorico, escala: ordinal}
+  - {id: ubicacion_procedimiento, tipo: categorico, escala: nominal}
+  - {id: grado_cooperacion, tipo: categorico, escala: nominal}
 
 # Qué subpoblaciones tienen sentido clínico para cada eje. gap_finder.py descarta
 # cualquier tupla eje×subpoblación que no aparezca aquí.
@@ -72,5 +72,5 @@ terminos_busqueda:
     asa3_alto_riesgo: "ASA III high-risk patients"
   outcomes:
     nivel_tratamiento_requerido: "dental treatment complexity"
-    ubicacion_procedimiento_sop_vs_consultorio: "operating room versus outpatient dental treatment"
+    ubicacion_procedimiento: "dental procedure location (outpatient, operating room, or hospitalization)"
     grado_cooperacion: "patient cooperation behavior management"

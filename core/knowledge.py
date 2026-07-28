@@ -14,6 +14,7 @@ class Plantilla:
     ejes: dict[str, str]                      # id -> estado
     subpoblaciones: dict[str, str]            # id -> estado
     outcomes: dict[str, str]                  # id -> tipo
+    outcomes_escala: dict[str, str]           # outcome id -> "ordinal"|"nominal" (solo categoricos que lo declaran)
     compatibilidad: dict[str, frozenset[str]]  # eje -> subpoblaciones validas
     causal_permitido: bool
     n_min: int
@@ -27,6 +28,7 @@ def load_plantilla(path: str) -> Plantilla:
     ejes = {e["id"]: e["estado"] for e in d["ejes"]}
     subpoblaciones = {p["id"]: p["estado"] for p in d["subpoblaciones"]}
     outcomes = {o["id"]: o["tipo"] for o in d["outcomes"]}
+    outcomes_escala = {o["id"]: o["escala"] for o in d["outcomes"] if "escala" in o}
 
     compat = {}
     for c in d.get("compatibilidad_eje_subpoblacion", []):
@@ -57,6 +59,7 @@ def load_plantilla(path: str) -> Plantilla:
         ejes=ejes,
         subpoblaciones=subpoblaciones,
         outcomes=outcomes,
+        outcomes_escala=outcomes_escala,
         compatibilidad=compat,
         causal_permitido=bool(d["diseno"]["inferencia_causal_permitida"]),
         n_min=int(d["diseno"]["n_min"]),

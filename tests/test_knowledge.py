@@ -156,3 +156,14 @@ generado_en: '2026-07-01'
     path.write_text(contenido, encoding="utf-8")
     perfil = load_perfil(str(path))
     assert perfil.n_conjunto == {}
+
+
+def test_load_plantilla_outcomes_escala():
+    p = load_plantilla("knowledge/plantilla_epe.yaml")
+    assert p.outcomes_escala == {
+        "nivel_tratamiento_requerido": "ordinal",
+        "ubicacion_procedimiento": "nominal",
+        "grado_cooperacion": "nominal",
+    }
+    assert "ubicacion_procedimiento_sop_vs_consultorio" not in p.outcomes
+    assert p.outcomes["ubicacion_procedimiento"] == "categorico"
