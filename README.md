@@ -31,6 +31,7 @@ pip install -r requirements.txt
 python orchestrator.py perfilar                    # Sheet EPE (vivo) -> knowledge/perfil_epe.yaml (sin PHI)
 python orchestrator.py propose                     # perfil + plantilla -> outputs/<timestamp>/candidatos.{md,json}
 python orchestrator.py design <candidato_id>       # candidatos.json + LLM → outputs/<run_id>/protocolo.md + protocolo.docx
+python orchestrator.py analyze <candidato_id>      # candidatos.json -> outputs/<run_id>/analisis.do (sintaxis Stata determinística)
 ```
 
 ## Deploy en Streamlit Community Cloud
@@ -81,7 +82,8 @@ Corre **sin red, sin credenciales de Google y sin API keys** (fixtures sintétic
 La fase `design` ya está implementada: lee el más reciente `candidatos.json` de `outputs/`,
 diseña el protocolo con validación metodológica (auditoría de sesgos, lenguaje causal), y
 genera `protocolo.md` y `protocolo.docx` en un nuevo directorio timestamped dentro de `outputs/`.
-Fases `analyze` y `report` (análisis de datos e informe final) quedan pendientes, igual que
-`endes-generator` las escalonó. Una semilla que el usuario valide se lleva manualmente, ya
-formulada, a `nucleo` si quiere respaldo de revisión de literatura — este sistema nunca
-alimenta el motor de `nucleo` directamente.
+La fase `analyze` también está implementada: lee `candidatos.json` y genera sintaxis Stata
+determinística (`analisis.do`) sin datos reales ni LLM.
+Fase `report` (informe final) queda pendiente, igual que `endes-generator` la escalonó. Una
+semilla que el usuario valide se lleva manualmente, ya formulada, a `nucleo` si quiere respaldo
+de revisión de literatura — este sistema nunca alimenta el motor de `nucleo` directamente.
