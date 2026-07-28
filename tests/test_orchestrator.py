@@ -396,3 +396,89 @@ def test_cmd_report_escribe_articulo(tmp_path, monkeypatch):
     assert exit_code == 0
     archivos = list((tmp_path / "outputs").glob("*/articulo.md"))
     assert len(archivos) == 1
+
+
+def test_localizar_candidato_con_ruta_explicita_no_toca_outputs(tmp_path, monkeypatch):
+    import orchestrator
+    monkeypatch.chdir(tmp_path)
+    candidatos_path = tmp_path / "mi_candidatos.json"
+    candidato_data = {
+        "id": "abc", "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": [],
+        "n_disponible": 100, "novedad": 1.0, "score_llm": 8.0,
+    }
+    candidatos_path.write_text(json.dumps([candidato_data]), encoding="utf-8")
+    candidato, errores = orchestrator._localizar_candidato("abc", str(candidatos_path))
+    assert candidato is not None
+    assert errores == []
+    assert not (tmp_path / "outputs").exists()
+
+
+def test_localizar_candidato_ruta_explicita_no_encontrado(tmp_path, monkeypatch):
+    import orchestrator
+    monkeypatch.chdir(tmp_path)
+    candidatos_path = tmp_path / "mi_candidatos.json"
+    candidatos_path.write_text(json.dumps([]), encoding="utf-8")
+    candidato, errores = orchestrator._localizar_candidato("no_existe", str(candidatos_path))
+    assert candidato is None
+    assert errores
+
+
+def test_localizar_candidato_ruta_explicita_archivo_faltante(tmp_path, monkeypatch):
+    import orchestrator
+    monkeypatch.chdir(tmp_path)
+    candidato, errores = orchestrator._localizar_candidato(
+        "abc", str(tmp_path / "no_existe.json"))
+    assert candidato is None
+    assert errores
+
+
+def test_run_design_con_candidatos_json_path_explicito(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidatos_path = tmp_path / "mi_candidatos.json"
+    candidato_data = {
+        "id": "abc", "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": [],
+        "n_disponible": 100, "novedad": 1.0, "score_llm": 8.0,
+    }
+    candidatos_path.write_text(json.dumps([candidato_data]), encoding="utf-8")
+    r = orchestrator.run_design("abc", candidatos_json_path=str(candidatos_path))
+    assert r.ok
+    assert not (tmp_path / "outputs").exists()
+
+
+def test_run_analyze_con_candidatos_json_path_explicito(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidatos_path = tmp_path / "mi_candidatos.json"
+    candidato_data = {
+        "id": "abc", "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": [],
+        "n_disponible": 100, "novedad": 1.0, "score_llm": 8.0,
+    }
+    candidatos_path.write_text(json.dumps([candidato_data]), encoding="utf-8")
+    r = orchestrator.run_analyze("abc", candidatos_json_path=str(candidatos_path))
+    assert r.ok
+    assert not (tmp_path / "outputs").exists()
+
+
+def test_run_report_con_candidatos_json_path_explicito(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidatos_path = tmp_path / "mi_candidatos.json"
+    candidato_data = {
+        "id": "abc", "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": [],
+        "n_disponible": 100, "novedad": 1.0, "score_llm": 8.0,
+    }
+    candidatos_path.write_text(json.dumps([candidato_data]), encoding="utf-8")
+    xlsx_path = _resultados_xlsx_valido(tmp_path)
+    r = orchestrator.run_report("abc", xlsx_path, candidatos_json_path=str(candidatos_path))
+    assert r.ok
+    assert not (tmp_path / "outputs").exists()

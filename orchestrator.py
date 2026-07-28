@@ -72,20 +72,28 @@ def _candidato_desde_json(item: dict) -> Candidato:
     )
 
 
-def _localizar_candidato(candidato_id_buscado: str) -> tuple[Candidato | None, list[str]]:
-    jsons = sorted(Path("outputs").glob("*/candidatos.json"), key=lambda p: p.stat().st_mtime)
-    if not jsons:
-        return None, ["No hay candidatos.json; corre 'propose' primero."]
-    data = json.loads(jsons[-1].read_text(encoding="utf-8"))
+def _localizar_candidato(candidato_id_buscado: str,
+                         candidatos_json_path: str | None = None) -> tuple[Candidato | None, list[str]]:
+    if candidatos_json_path is not None:
+        ruta = Path(candidatos_json_path)
+        if not ruta.exists():
+            return None, [f"No existe el archivo de candidatos: {candidatos_json_path}"]
+    else:
+        jsons = sorted(Path("outputs").glob("*/candidatos.json"), key=lambda p: p.stat().st_mtime)
+        if not jsons:
+            return None, ["No hay candidatos.json; corre 'propose' primero."]
+        ruta = jsons[-1]
+    data = json.loads(ruta.read_text(encoding="utf-8"))
     item = next((it for it in data if it["id"] == candidato_id_buscado), None)
     if item is None:
-        return None, [f"Candidato '{candidato_id_buscado}' no encontrado en {jsons[-1]}."]
+        return None, [f"Candidato '{candidato_id_buscado}' no encontrado en {ruta}."]
     return _candidato_desde_json(item), []
 
 
 def run_design(candidato_id_buscado: str, plantilla_path: str = "knowledge/plantilla_epe.yaml",
-              limitaciones_path: str = "knowledge/limitaciones_epe.yaml") -> AgentResult:
-    candidato, errores = _localizar_candidato(candidato_id_buscado)
+              limitaciones_path: str = "knowledge/limitaciones_epe.yaml",
+              candidatos_json_path: str | None = None) -> AgentResult:
+    candidato, errores = _localizar_candidato(candidato_id_buscado, candidatos_json_path)
     if candidato is None:
         return AgentResult.failure(errores)
     plantilla = load_plantilla(plantilla_path)
@@ -95,8 +103,9 @@ def run_design(candidato_id_buscado: str, plantilla_path: str = "knowledge/plant
 
 
 def run_analyze(candidato_id_buscado: str,
-                plantilla_path: str = "knowledge/plantilla_epe.yaml") -> AgentResult:
-    candidato, errores = _localizar_candidato(candidato_id_buscado)
+                plantilla_path: str = "knowledge/plantilla_epe.yaml",
+                candidatos_json_path: str | None = None) -> AgentResult:
+    candidato, errores = _localizar_candidato(candidato_id_buscado, candidatos_json_path)
     if candidato is None:
         return AgentResult.failure(errores)
     plantilla = load_plantilla(plantilla_path)
@@ -105,8 +114,9 @@ def run_analyze(candidato_id_buscado: str,
 
 def run_report(candidato_id_buscado: str, resultados_xlsx_path: str,
                plantilla_path: str = "knowledge/plantilla_epe.yaml",
-               limitaciones_path: str = "knowledge/limitaciones_epe.yaml") -> AgentResult:
-    candidato, errores = _localizar_candidato(candidato_id_buscado)
+               limitaciones_path: str = "knowledge/limitaciones_epe.yaml",
+               candidatos_json_path: str | None = None) -> AgentResult:
+    candidato, errores = _localizar_candidato(candidato_id_buscado, candidatos_json_path)
     if candidato is None:
         return AgentResult.failure(errores)
     resultado_parse = parsear_resultados(resultados_xlsx_path)
