@@ -11,6 +11,7 @@ from agents.gap_finder import filtrar_factibilidad, generar_espacio, rankear
 from agents.novelty_checker import Candidato
 from agents.perfilador import perfilar
 from agents.protocol_designer import disenar_protocolo
+from agents.statistician import generar_do
 from core.knowledge import guardar_perfil, load_perfil, load_plantilla
 from core.llm_client import make_client
 from core.pubmed_client import make_pubmed_client
@@ -68,20 +69,35 @@ def _candidato_desde_json(item: dict) -> Candidato:
     )
 
 
-def run_design(candidato_id_buscado: str, plantilla_path: str = "knowledge/plantilla_epe.yaml",
-              limitaciones_path: str = "knowledge/limitaciones_epe.yaml") -> AgentResult:
+def _localizar_candidato(candidato_id_buscado: str) -> tuple[Candidato | None, list[str]]:
     jsons = sorted(Path("outputs").glob("*/candidatos.json"), key=lambda p: p.stat().st_mtime)
     if not jsons:
-        return AgentResult.failure(["No hay candidatos.json; corre 'propose' primero."])
+        return None, ["No hay candidatos.json; corre 'propose' primero."]
     data = json.loads(jsons[-1].read_text(encoding="utf-8"))
     item = next((it for it in data if it["id"] == candidato_id_buscado), None)
     if item is None:
-        return AgentResult.failure([f"Candidato '{candidato_id_buscado}' no encontrado en {jsons[-1]}."])
-    candidato = _candidato_desde_json(item)
+        return None, [f"Candidato '{candidato_id_buscado}' no encontrado en {jsons[-1]}."]
+    return _candidato_desde_json(item), []
+
+
+def run_design(candidato_id_buscado: str, plantilla_path: str = "knowledge/plantilla_epe.yaml",
+              limitaciones_path: str = "knowledge/limitaciones_epe.yaml") -> AgentResult:
+    candidato, errores = _localizar_candidato(candidato_id_buscado)
+    if candidato is None:
+        return AgentResult.failure(errores)
     plantilla = load_plantilla(plantilla_path)
     limitaciones = load_limitaciones(limitaciones_path)
     llm = _make_llm_client_or_none()
     return disenar_protocolo(candidato, plantilla, limitaciones, llm)
+
+
+def run_analyze(candidato_id_buscado: str,
+                plantilla_path: str = "knowledge/plantilla_epe.yaml") -> AgentResult:
+    candidato, errores = _localizar_candidato(candidato_id_buscado)
+    if candidato is None:
+        return AgentResult.failure(errores)
+    plantilla = load_plantilla(plantilla_path)
+    return AgentResult.success(generar_do(candidato, plantilla))
 
 
 def _make_llm_client_or_none():
@@ -160,6 +176,22 @@ def _cmd_design(candidato_id_arg: str) -> int:
     return 0
 
 
+def _cmd_analyze(candidato_id_arg: str) -> int:
+    r = run_analyze(candidato_id_arg)
+    if not r.ok:
+        for w in r.warnings:
+            print(f"  aviso: {w}", file=sys.stderr)
+        return 1
+    run_id = time.strftime("%Y%m%d-%H%M%S")
+    out_dir = Path("outputs") / run_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "analisis.do").write_text(r.data, encoding="utf-8")
+    print(f"Escrito: {out_dir / 'analisis.do'}")
+    for w in r.warnings:
+        print(f"  aviso: {w}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     try:
         from dotenv import load_dotenv
@@ -172,7 +204,10 @@ def main(argv: list[str]) -> int:
         return _cmd_propose()
     if len(argv) >= 2 and argv[0] == "design":
         return _cmd_design(argv[1])
-    print("uso: python orchestrator.py perfilar | propose | design <id>", file=sys.stderr)
+    if len(argv) >= 2 and argv[0] == "analyze":
+        return _cmd_analyze(argv[1])
+    print("uso: python orchestrator.py perfilar | propose | design <id> | analyze <id>",
+          file=sys.stderr)
     return 2
 
 

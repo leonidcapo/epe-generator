@@ -248,3 +248,58 @@ def test_cmd_design_escribe_md_y_docx(tmp_path, monkeypatch):
     archivos_docx = list((tmp_path / "outputs").glob("*/protocolo.docx"))
     assert len(archivos_md) == 1
     assert len(archivos_docx) == 1
+
+
+def test_run_analyze_encuentra_candidato_y_genera_do(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidato_data = {
+        "id": "riesgo_sistemico_asa_asa3_alto_riesgo_nivel_tratamiento_requerido_adj_farmacoterapia_polifarmacia",
+        "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": ["farmacoterapia_polifarmacia"],
+        "n_disponible": 1350, "novedad": 1.0, "score_llm": 8.0,
+    }
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([candidato_data]), encoding="utf-8")
+    r = orchestrator.run_analyze(candidato_data["id"])
+    assert r.ok
+    assert "ologit nivel_tratamiento_requerido" in r.data
+
+
+def test_run_analyze_candidato_no_encontrado(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([]), encoding="utf-8")
+    r = orchestrator.run_analyze("no_existe")
+    assert not r.ok
+
+
+def test_run_analyze_sin_candidatos_json_falla(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    r = orchestrator.run_analyze("cualquiera")
+    assert not r.ok
+
+
+def test_cmd_analyze_escribe_do(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidato_data = {
+        "id": "abc", "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": ["farmacoterapia_polifarmacia"],
+        "n_disponible": 1350, "novedad": 1.0, "score_llm": 8.0,
+    }
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([candidato_data]), encoding="utf-8")
+    exit_code = orchestrator.main(["analyze", "abc"])
+    assert exit_code == 0
+    archivos = list((tmp_path / "outputs").glob("*/analisis.do"))
+    assert len(archivos) == 1
