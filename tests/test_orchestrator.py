@@ -213,6 +213,10 @@ def test_run_design_sin_candidatos_json_falla(tmp_path, monkeypatch):
 
 def test_cmd_design_escribe_md_y_docx(tmp_path, monkeypatch):
     import orchestrator
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    # Prevent load_dotenv from loading the real .env file
+    monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: None)
     _copiar_plantilla(tmp_path)
     _copiar_limitaciones(tmp_path)
     monkeypatch.chdir(tmp_path)
