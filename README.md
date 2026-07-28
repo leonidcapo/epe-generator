@@ -80,13 +80,14 @@ Corre **sin red, sin credenciales de Google y sin API keys** (fixtures sintétic
 
 ## Ciclo completo (v1)
 
-El ciclo de cuatro fases está implementado:
+El ciclo de cuatro fases (`propose` → `design` → `analyze` → `report`) está implementado,
+precedido por el prerrequisito `perfilar`:
 
-1. **`perfilar`**: Lee el Sheet EPE (vivo, con PHI) y produce el perfil agregado.
-2. **`propose`**: Genera semillas de ideas (candidatos) desde el perfil.
-3. **`design`**: Diseña el protocolo ex ante con validación metodológica (auditoría de sesgos, lenguaje causal).
-4. **`analyze`**: Genera sintaxis Stata determinística para análisis.
-5. **`report`**: Lee el archivo de resultados y genera el informe final (`articulo.md`).
+0. **`perfilar`** (prerrequisito): Lee el Sheet EPE (vivo, con PHI) y produce el perfil agregado.
+1. **`propose`**: Genera semillas de ideas (candidatos) desde el perfil.
+2. **`design`**: Diseña el protocolo ex ante con validación metodológica (auditoría de sesgos, lenguaje causal).
+3. **`analyze`**: Genera sintaxis Stata determinística para análisis.
+4. **`report`**: Lee el archivo de resultados y genera el informe final (`articulo.md`).
 
 Una semilla que el usuario valide se lleva manualmente, ya formulada, a `nucleo` si quiere respaldo
 de revisión de literatura — este sistema nunca alimenta el motor de `nucleo` directamente.

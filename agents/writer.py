@@ -16,6 +16,8 @@ from agents.statistician import mapeo_hojas_bivariado
 from core.knowledge import Plantilla
 from core.result import AgentResult
 
+_PREFIJO_BIVARIADO = "bivariado_"
+
 
 def _num(x: float, dec: int = 2) -> str:
     return f"{x:.{dec}f}".replace(".", ",")
@@ -34,7 +36,10 @@ def redactar_resultados(tablas: dict, candidato: Candidato) -> str:
     bivariado = tablas.get("bivariado") or {}
     if bivariado:
         predictores = [candidato.eje, *candidato.covariables_ajuste]
-        hoja_a_pred = {hoja: pred for pred, hoja in mapeo_hojas_bivariado(predictores).items()}
+        hoja_a_pred = {
+            hoja[len(_PREFIJO_BIVARIADO):]: pred
+            for pred, hoja in mapeo_hojas_bivariado(predictores).items()
+        }
         lineas += ["", "### Análisis bivariado", ""]
         for hoja_key, terminos in bivariado.items():
             pred_real = hoja_a_pred.get(hoja_key, hoja_key)  # degrada al key crudo si no coincide

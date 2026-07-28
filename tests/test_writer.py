@@ -1,4 +1,7 @@
+import openpyxl
+
 from agents.bias_auditor import load_limitaciones
+from agents.executor import parsear_resultados
 from agents.novelty_checker import Candidato
 from agents.writer import redactar_articulo, redactar_resultados
 from core.knowledge import load_plantilla
@@ -41,14 +44,55 @@ def test_redactar_resultados_traduce_hoja_bivariado_a_covariable_real():
     c = Candidato(eje="riesgo_sistemico_asa", subpoblacion="asa3_alto_riesgo",
                  outcome="nivel_tratamiento_requerido",
                  covariables_ajuste=("farmacoterapia_polifarmacia",), n_disponible=1350)
-    hoja_farmaco = mapeo_hojas_bivariado([c.eje, *c.covariables_ajuste])["farmacoterapia_polifarmacia"]
+    hoja_farmaco_completa = mapeo_hojas_bivariado([c.eje, *c.covariables_ajuste])["farmacoterapia_polifarmacia"]
+    hoja_farmaco_stripped = hoja_farmaco_completa[len("bivariado_"):]  # lo que executor.py realmente produce
     tablas = {
         "descriptivos": [], "modelo": [],
-        "bivariado": {hoja_farmaco: [{"termino": "1", "efecto": 3.1, "ic_inf": 2.0, "ic_sup": 4.2, "p": None}]},
+        "bivariado": {hoja_farmaco_stripped: [{"termino": "1", "efecto": 3.1, "ic_inf": 2.0, "ic_sup": 4.2, "p": None}]},
     }
     texto = redactar_resultados(tablas, c)
     assert "farmacoterapia_polifarmacia = 1:" in texto
-    assert hoja_farmaco not in texto  # el nombre truncado de la hoja no debe filtrarse a la prosa
+    # el fragmento truncado no debe aparecer como token propio (solo como substring
+    # del nombre real ya traducido, que sí lo contiene por coincidencia de prefijo)
+    assert f"{hoja_farmaco_stripped} =" not in texto
+
+
+def test_redactar_resultados_traduce_correctamente_via_executor_real(tmp_path):
+    """Prueba de integracion real: escribe un .xlsx con el MISMO nombre de hoja
+    truncado que agents/statistician.py generaria, lo parsea con el executor real
+    (no un dict armado a mano), y confirma que redactar_resultados muestra el
+    nombre real de la covariable, no el fragmento truncado."""
+    from agents.statistician import mapeo_hojas_bivariado
+
+    c = Candidato(eje="riesgo_sistemico_asa", subpoblacion="asa3_alto_riesgo",
+                 outcome="nivel_tratamiento_requerido",
+                 covariables_ajuste=("farmacoterapia_polifarmacia",), n_disponible=1350)
+    hoja_farmaco = mapeo_hojas_bivariado([c.eje, *c.covariables_ajuste])["farmacoterapia_polifarmacia"]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "descriptivos"
+    ws.append([None, "nivel_tratamiento_requerido"])
+    ws.append(["b", 2.34])
+    ws.append(["ll", 2.10])
+    ws.append(["ul", 2.58])
+    ws2 = wb.create_sheet("modelo")
+    ws2.append([None, "riesgo_sistemico_asa"])
+    ws2.append(["b", 1.87])
+    ws2.append(["ll", 1.20])
+    ws2.append(["ul", 2.91])
+    ws3 = wb.create_sheet(hoja_farmaco)  # nombre de hoja EXACTAMENTE como lo escribiria statistician.py
+    ws3.append([None, "1"])
+    ws3.append(["b", 3.1])
+    ws3.append(["ll", 2.0])
+    ws3.append(["ul", 4.2])
+    path = tmp_path / "resultados.xlsx"
+    wb.save(path)
+
+    resultado = parsear_resultados(str(path))
+    assert resultado.ok
+    texto = redactar_resultados(resultado.data, c)
+    assert "farmacoterapia_polifarmacia = 1:" in texto
 
 
 def test_redactar_articulo_degrada_sin_llm():
