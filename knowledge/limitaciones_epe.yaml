@@ -1,0 +1,55 @@
+# limitaciones_epe.yaml
+# Checklist ejecutable de sesgos/limitaciones metodológicas conocidas para la cohorte EPE
+# (registro clínico del Servicio de Pacientes Especiales, no una encuesta poblacional). El
+# agente Bias Auditor recorre esta lista y marca cuáles aplican al protocolo generado.
+
+- id: ausencia_causalidad
+  categoria: diseno_del_estudio
+  descripcion: >
+    Al ser un estudio observacional transversal, solo permite identificar
+    asociaciones estadísticas en un momento dado, no relaciones causa-efecto.
+  aplica_siempre: true
+  accion_agente: rechazar_lenguaje_causal_en_redaccion
+
+- id: cohorte_hospital_unico
+  categoria: representatividad
+  descripcion: >
+    La cohorte proviene de un único hospital (Hospital Nacional PNP "Luis N.
+    Sáenz"), no de una muestra probabilística poblacional; los resultados no
+    son generalizables a otras poblaciones o servicios sin verificación externa.
+  aplica_siempre: true
+
+- id: dependencia_registro_clinico
+  categoria: dependencia_datos_secundarios
+  descripcion: >
+    Los datos provienen de un registro clínico administrativo (Sigesapol/EPE),
+    no recolectados con fines de investigación; el investigador no controla la
+    captura original ni puede corregir errores de registro retrospectivamente.
+  aplica_siempre: true
+
+- id: variables_limitadas_al_registro
+  categoria: dependencia_datos_secundarios
+  descripcion: >
+    El registro clínico no incluye todas las variables potencialmente
+    relevantes según la literatura; algunos ejes declarados en la plantilla
+    metodológica (p. ej. morbilidad por sistema CIE-11, estado nutricional)
+    no cuentan aún con columna de datos disponible.
+  aplica_siempre: true
+
+- id: calidad_de_registro
+  categoria: sesgo_medicion
+  descripcion: >
+    Algunas variables del registro presentan valores inconsistentes o
+    incompletos (p. ej. errores de fórmula heredados en variables numéricas,
+    categorías de grupo etario no mapeadas), lo que puede introducir sesgo de
+    clasificación si no se depuran antes del análisis.
+  aplica_siempre: true
+
+- id: covariables_no_exhaustivas
+  categoria: confusion_residual
+  descripcion: >
+    El ajuste multivariado incluye solo las covariables disponibles y
+    compatibles con la subpoblación en la plantilla metodológica; puede
+    existir confusión residual por variables no medidas en el registro.
+  aplica_si: modelo_tiene_covariables_de_ajuste
+  accion_agente: advertir_confusion_residual_si_pocas_covariables
