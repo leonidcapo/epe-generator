@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -10,13 +11,15 @@ from core.auth import verificar_credenciales
 from core.knowledge import load_perfil
 from core.llm_client import make_client
 from core.pubmed_client import make_pubmed_client
-from orchestrator import run_propose
-from ui_render import render_candidatos_json, render_candidatos_md
+from orchestrator import run_analyze, run_design, run_propose, run_report
+from ui_render import (render_articulo_md, render_candidatos_json, render_candidatos_md,
+                       render_protocolo_docx, render_protocolo_md)
 
 _SECRET_KEYS = ("LLM_PROVIDER", "DEEPSEEK_API_KEY", "DEEPSEEK_MODEL",
                "PUBMED_API_KEY", "AUTH_USER", "AUTH_PASSWORD")
 
 _PLANTILLA = str(Path(__file__).parent / "knowledge" / "plantilla_epe.yaml")
+_LIMITACIONES = str(Path(__file__).parent / "knowledge" / "limitaciones_epe.yaml")
 
 
 def _puente_secrets_a_env() -> None:
@@ -39,6 +42,34 @@ def _cliente_llm_o_none():
     except ValueError as exc:
         st.warning(f"LLM no disponible: {exc} — modo degradado (ranking por novedad).")
         return None
+
+
+def _parsear_candidatos_subido(subido) -> list[dict] | None:
+    try:
+        items = json.loads(subido.getvalue().decode("utf-8"))
+    except Exception as exc:
+        st.error(f"No se pudo leer candidatos.json: {exc}")
+        return None
+    if not isinstance(items, list) or not all("id" in it for it in items):
+        st.error("El archivo no tiene el formato esperado de candidatos.json.")
+        return None
+    return items
+
+
+def _selector_candidato(items: list[dict]) -> str:
+    etiquetas = {
+        f"{it['eje']} × {it['subpoblacion']} → {it['outcome']} ({it['id']})": it["id"]
+        for it in items
+    }
+    etiqueta = st.selectbox("Candidato", list(etiquetas.keys()))
+    return etiquetas[etiqueta]
+
+
+def _guardar_temp_json(items: list[dict]) -> str:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False,
+                                     encoding="utf-8") as tmp:
+        json.dump(items, tmp)
+        return tmp.name
 
 
 def _gate_login() -> bool:
@@ -112,12 +143,140 @@ def vista_propose() -> None:
                                file_name="candidatos.json", mime="application/json")
 
 
+def vista_design() -> None:
+    st.header("Design — protocolo de investigación")
+    subido = st.file_uploader("Sube candidatos.json", type=["json"], key="design_candidatos")
+    if not subido:
+        return
+    items = _parsear_candidatos_subido(subido)
+    if items is None:
+        return
+    if not items:
+        st.warning("El archivo no tiene candidatos.")
+        return
+    candidato_id = _selector_candidato(items)
+    if st.button("Generar protocolo"):
+        ruta_candidatos = _guardar_temp_json(items)
+        try:
+            r = run_design(candidato_id, _PLANTILLA, _LIMITACIONES,
+                           candidatos_json_path=ruta_candidatos)
+        except Exception as exc:
+            st.error(f"Ocurrió un error generando el protocolo: {exc}")
+            return
+        finally:
+            os.unlink(ruta_candidatos)
+        st.session_state["resultado_design"] = r
+
+    if "resultado_design" in st.session_state:
+        r = st.session_state["resultado_design"]
+        for w in r.warnings:
+            st.warning(w)
+        if r.ok:
+            protocolo = r.data
+            st.markdown(render_protocolo_md(protocolo))
+            c1, c2 = st.columns(2)
+            c1.download_button("Descargar protocolo.md", render_protocolo_md(protocolo),
+                               file_name="protocolo.md")
+            c2.download_button(
+                "Descargar protocolo.docx", render_protocolo_docx(protocolo),
+                file_name="protocolo.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        else:
+            st.error("No se pudo generar el protocolo.")
+
+
+def vista_analyze() -> None:
+    st.header("Analyze — sintaxis Stata")
+    subido = st.file_uploader("Sube candidatos.json", type=["json"], key="analyze_candidatos")
+    if not subido:
+        return
+    items = _parsear_candidatos_subido(subido)
+    if items is None:
+        return
+    if not items:
+        st.warning("El archivo no tiene candidatos.")
+        return
+    candidato_id = _selector_candidato(items)
+    if st.button("Generar análisis"):
+        ruta_candidatos = _guardar_temp_json(items)
+        try:
+            r = run_analyze(candidato_id, _PLANTILLA, candidatos_json_path=ruta_candidatos)
+        except Exception as exc:
+            st.error(f"Ocurrió un error generando el análisis: {exc}")
+            return
+        finally:
+            os.unlink(ruta_candidatos)
+        st.session_state["resultado_analyze"] = r
+
+    if "resultado_analyze" in st.session_state:
+        r = st.session_state["resultado_analyze"]
+        for w in r.warnings:
+            st.warning(w)
+        if r.ok:
+            st.code(r.data, language="stata")
+            st.download_button("Descargar analisis.do", r.data, file_name="analisis.do")
+        else:
+            st.error("No se pudo generar el análisis.")
+
+
+def vista_report() -> None:
+    st.header("Report — informe final")
+    subido_candidatos = st.file_uploader("Sube candidatos.json", type=["json"],
+                                         key="report_candidatos")
+    subido_xlsx = st.file_uploader("Sube resultados.xlsx", type=["xlsx"], key="report_xlsx")
+    if not subido_candidatos or not subido_xlsx:
+        return
+    items = _parsear_candidatos_subido(subido_candidatos)
+    if items is None:
+        return
+    if not items:
+        st.warning("El archivo no tiene candidatos.")
+        return
+    candidato_id = _selector_candidato(items)
+    if st.button("Generar informe"):
+        ruta_candidatos = _guardar_temp_json(items)
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_xlsx:
+            tmp_xlsx.write(subido_xlsx.getvalue())
+            ruta_xlsx = tmp_xlsx.name
+        try:
+            r = run_report(candidato_id, ruta_xlsx, _PLANTILLA, _LIMITACIONES,
+                           candidatos_json_path=ruta_candidatos)
+        except Exception as exc:
+            st.error(f"Ocurrió un error generando el informe: {exc}")
+            return
+        finally:
+            os.unlink(ruta_candidatos)
+            os.unlink(ruta_xlsx)
+        st.session_state["resultado_report"] = r
+
+    if "resultado_report" in st.session_state:
+        r = st.session_state["resultado_report"]
+        for w in r.warnings:
+            st.warning(w)
+        if r.ok:
+            articulo = r.data
+            st.markdown(render_articulo_md(articulo))
+            st.download_button("Descargar articulo.md", render_articulo_md(articulo),
+                               file_name="articulo.md")
+        else:
+            st.error("No se pudo generar el informe.")
+
+
 def main() -> None:
     _puente_secrets_a_env()
     st.set_page_config(page_title="epe-generator", layout="wide")
     if not _gate_login():
         return
-    vista_propose()
+    vista = st.sidebar.radio("Fase", ["Propose", "Design", "Analyze", "Report"])
+    if vista == "Propose":
+        vista_propose()
+    elif vista == "Design":
+        vista_design()
+    elif vista == "Analyze":
+        vista_analyze()
+    else:
+        vista_report()
 
 
 if __name__ == "__main__":
