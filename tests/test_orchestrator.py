@@ -11,6 +11,24 @@ from core.pubmed_client import FakePubMedClient
 from tests.fixtures.sheet_rows_sinteticas import FILAS_SINTETICAS
 
 
+@pytest.fixture(autouse=True)
+def _sin_llm_real(monkeypatch):
+    """Prevent any test in this file from using a real LLM environment or loading a real .env.
+
+    This autouse fixture ensures:
+    - DEEPSEEK_API_KEY and LLM_PROVIDER are never loaded from the environment
+    - load_dotenv() is monkeypatched to do nothing, preventing accidental .env discovery
+
+    This closes the risk class where load_dotenv() in orchestrator.main() walks up the
+    directory tree and loads a real .env with real API keys that leak into os.environ,
+    affecting subsequent tests in the same pytest session.
+    """
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: None)
+    yield
+
+
 def _copiar_plantilla(tmp_path):
     repo_root = Path(__file__).resolve().parent.parent
     (tmp_path / "knowledge").mkdir(exist_ok=True)
@@ -213,10 +231,6 @@ def test_run_design_sin_candidatos_json_falla(tmp_path, monkeypatch):
 
 def test_cmd_design_escribe_md_y_docx(tmp_path, monkeypatch):
     import orchestrator
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
-    monkeypatch.delenv("LLM_PROVIDER", raising=False)
-    # Prevent load_dotenv from loading the real .env file
-    monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: None)
     _copiar_plantilla(tmp_path)
     _copiar_limitaciones(tmp_path)
     monkeypatch.chdir(tmp_path)
