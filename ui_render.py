@@ -7,6 +7,7 @@ from docx import Document
 
 from agents.novelty_checker import candidato_id
 from agents.protocol_designer import Protocolo
+from agents.writer import Articulo
 
 
 def render_candidatos_md(filas: list[dict], warnings: list[str]) -> str:
@@ -128,3 +129,24 @@ def render_protocolo_docx(protocolo: Protocolo) -> bytes:
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
+
+
+_ARTICULO_SECCIONES_POST = {
+    "discusion": "Discusión", "conclusiones": "Conclusiones",
+    "recomendaciones": "Recomendaciones", "resumen": "Resumen",
+}
+
+
+def render_articulo_md(articulo: Articulo) -> str:
+    a = articulo
+    lines = [f"# Informe final — {a.candidato_id}", ""]
+    for sec, titulo in _PROTO_SECCIONES.items():
+        lines += [f"## {titulo}", "", a.prosa_ante.get(sec, ""), ""]
+    lines += [a.resultados, ""]
+    for sec, titulo in _ARTICULO_SECCIONES_POST.items():
+        lines += [f"## {titulo}", "", a.prosa_post.get(sec, ""), ""]
+    if a.limitaciones:
+        lines += ["## Limitaciones", ""] + [f"- {t}" for t in a.limitaciones] + [""]
+    if a.warnings:
+        lines += ["## Avisos de auditoría", ""] + [f"> ⚠️ {w}" for w in a.warnings]
+    return "\n".join(lines)

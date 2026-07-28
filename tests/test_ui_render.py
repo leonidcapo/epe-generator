@@ -5,7 +5,8 @@ from docx import Document
 
 from agents.novelty_checker import Candidato
 from agents.protocol_designer import Protocolo
-from ui_render import render_candidatos_md, render_candidatos_json, render_protocolo_docx, render_protocolo_md
+from agents.writer import Articulo
+from ui_render import render_candidatos_md, render_candidatos_json, render_protocolo_docx, render_protocolo_md, render_articulo_md
 
 
 def _fila():
@@ -117,3 +118,35 @@ def test_render_protocolo_docx_sin_auditoria_warnings_no_incluye_seccion():
     full_text = "\n".join([p.text for p in doc.paragraphs])
     # La sección "Auditoría" no debe aparecer si warnings_auditoria está vacío
     assert not any("Auditoría" in p.text for p in doc.paragraphs)
+
+
+def _articulo():
+    return Articulo(
+        candidato_id="riesgo_sistemico_asa_asa3_alto_riesgo_nivel_tratamiento_requerido_adj_farmacoterapia_polifarmacia",
+        resultados="## Resultados\n\n- riesgo_sistemico_asa: efecto = 1,87 (IC95%: 1,20–2,91; p = 0,003).",
+        prosa_ante={
+            "introduccion": "Texto de introducción.", "marco_teorico": "Texto de marco.",
+            "objetivos": "Texto de objetivos.", "hipotesis": "Texto de hipótesis.",
+            "metodos": "Texto de métodos.",
+        },
+        prosa_post={
+            "discusion": "Texto de discusión.", "conclusiones": "Texto de conclusiones.",
+            "recomendaciones": "Texto de recomendaciones.", "resumen": "Texto de resumen.",
+        },
+        limitaciones=["Limitación 1."],
+        warnings=["Aviso de prueba."],
+    )
+
+
+def test_render_articulo_md_incluye_secciones_ex_ante_y_ex_post():
+    md = render_articulo_md(_articulo())
+    assert "Texto de introducción." in md
+    assert "Texto de discusión." in md
+    assert "riesgo_sistemico_asa: efecto = 1,87" in md
+    assert "Limitación 1." in md
+    assert "Aviso de prueba." in md
+
+
+def test_render_articulo_md_sin_seccion_referencias():
+    md = render_articulo_md(_articulo())
+    assert "Referencias" not in md
