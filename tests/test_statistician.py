@@ -1,5 +1,5 @@
 from agents.novelty_checker import Candidato, candidato_id
-from agents.statistician import generar_do
+from agents.statistician import generar_do, mapeo_hojas_bivariado
 from core.knowledge import Plantilla, load_plantilla
 
 
@@ -33,7 +33,8 @@ def test_generar_do_ordinal_incluye_encabezado_y_bloques():
     assert "* filtrar a subpoblacion: asa3_alto_riesgo" in texto
     assert "sheet(descriptivos)" in texto
     assert "sheet(bivariado_riesgo_sistemico_asa)" in texto
-    assert "sheet(bivariado_farmacoterapia_polifarmacia)" in texto
+    # farmacoterapia_polifarmacia es truncado a 31 caracteres en el nombre de hoja
+    assert "sheet(bivariado_farmacoterapia_polifa" in texto
     assert "sheet(modelo)" in texto
     assert "ologit nivel_tratamiento_requerido riesgo_sistemico_asa farmacoterapia_polifarmacia" in texto
     assert "svy" not in texto.lower()
@@ -70,3 +71,35 @@ def test_generar_do_continuo_usa_regress():
                  covariables_ajuste=(), n_disponible=50)
     texto = generar_do(c, p)
     assert "regress outcome_z exposicion_x" in texto
+
+
+def test_mapeo_hojas_bivariado_sin_truncar_para_nombres_cortos():
+    mapeo = mapeo_hojas_bivariado(["edad", "sexo"])
+    assert mapeo == {"edad": "bivariado_edad", "sexo": "bivariado_sexo"}
+
+
+def test_mapeo_hojas_bivariado_trunca_nombres_largos():
+    mapeo = mapeo_hojas_bivariado(["farmacoterapia_polifarmacia"])
+    assert len(mapeo["farmacoterapia_polifarmacia"]) == 31
+    assert mapeo["farmacoterapia_polifarmacia"].startswith("bivariado_farmacoterapia")
+
+
+def test_mapeo_hojas_bivariado_resuelve_colision_con_sufijo():
+    # Dos predictores con el mismo prefijo de 31 caracteres una vez truncados
+    largo_a = "x" * 40 + "_alfa"
+    largo_b = "x" * 40 + "_beta"
+    mapeo = mapeo_hojas_bivariado([largo_a, largo_b])
+    assert mapeo[largo_a] != mapeo[largo_b]
+    assert len(mapeo[largo_a]) <= 31
+    assert len(mapeo[largo_b]) <= 31
+
+
+def test_generar_do_incluye_mapeo_de_hojas_truncadas_en_comentario():
+    c = Candidato(eje="riesgo_sistemico_asa", subpoblacion="asa3_alto_riesgo",
+                 outcome="nivel_tratamiento_requerido",
+                 covariables_ajuste=("farmacoterapia_polifarmacia",), n_disponible=1350)
+    texto = generar_do(c, _plantilla())
+    assert "Nombres de hoja truncados" in texto
+    assert "farmacoterapia_polifarmacia" in texto
+    # el sheet() real en el putexcel debe usar el nombre truncado, no el largo original
+    assert "sheet(bivariado_farmacoterapia_polifarmacia)" not in texto
