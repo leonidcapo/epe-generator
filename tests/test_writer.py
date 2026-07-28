@@ -74,7 +74,7 @@ def test_redactar_articulo_marca_cifra_inventada():
 
 def test_redactar_articulo_detecta_lenguaje_causal():
     lims = load_limitaciones("knowledge/limitaciones_epe.yaml")
-    llm = FakeLLMClient(responses=["El riesgo sistemico causo el nivel de tratamiento."])
+    llm = FakeLLMClient(responses=["El riesgo sistémico causó el nivel de tratamiento."])
     r = redactar_articulo(_candidato(), _plantilla(), _tablas(), lims, llm)
     assert any("Lenguaje causal" in w for w in r.warnings)
 
