@@ -18,6 +18,13 @@ def _copiar_plantilla(tmp_path):
                 tmp_path / "knowledge" / "plantilla_epe.yaml")
 
 
+def _copiar_limitaciones(tmp_path):
+    repo_root = Path(__file__).resolve().parent.parent
+    (tmp_path / "knowledge").mkdir(exist_ok=True)
+    shutil.copy(repo_root / "knowledge" / "limitaciones_epe.yaml",
+                tmp_path / "knowledge" / "limitaciones_epe.yaml")
+
+
 def test_run_perfilar_ok_escribe_perfil(tmp_path, monkeypatch):
     import orchestrator
     _copiar_plantilla(tmp_path)
@@ -163,3 +170,63 @@ def test_cmd_propose_sin_perfil_no_crashea_y_retorna_1(tmp_path, monkeypatch, ca
     assert codigo == 1
     err = capsys.readouterr().err
     assert "perfilar" in err
+
+
+def test_run_design_encuentra_candidato_y_genera_protocolo(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidato_data = {
+        "id": "riesgo_sistemico_asa_asa3_alto_riesgo_nivel_tratamiento_requerido_adj_farmacoterapia_polifarmacia",
+        "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": ["farmacoterapia_polifarmacia"],
+        "n_disponible": 1350, "novedad": 1.0, "score_llm": 8.0,
+    }
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([candidato_data]), encoding="utf-8")
+    r = orchestrator.run_design(candidato_data["id"])
+    assert r.ok
+    assert r.data.candidato_id == candidato_data["id"]
+
+
+def test_run_design_candidato_no_encontrado(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([]), encoding="utf-8")
+    r = orchestrator.run_design("no_existe")
+    assert not r.ok
+
+
+def test_run_design_sin_candidatos_json_falla(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    r = orchestrator.run_design("cualquiera")
+    assert not r.ok
+
+
+def test_cmd_design_escribe_md_y_docx(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidato_data = {
+        "id": "abc", "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": ["farmacoterapia_polifarmacia"],
+        "n_disponible": 1350, "novedad": 1.0, "score_llm": 8.0,
+    }
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([candidato_data]), encoding="utf-8")
+    exit_code = orchestrator.main(["design", "abc"])
+    assert exit_code == 0
+    archivos_md = list((tmp_path / "outputs").glob("*/protocolo.md"))
+    archivos_docx = list((tmp_path / "outputs").glob("*/protocolo.docx"))
+    assert len(archivos_md) == 1
+    assert len(archivos_docx) == 1
