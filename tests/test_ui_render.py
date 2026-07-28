@@ -1,4 +1,7 @@
+import io
 import json
+
+from docx import Document
 
 from agents.novelty_checker import Candidato
 from agents.protocol_designer import Protocolo
@@ -91,3 +94,26 @@ def test_render_protocolo_docx_produce_bytes_validos():
     assert isinstance(data, bytes)
     assert len(data) > 0
     assert data[:2] == b"PK"  # .docx es un archivo zip
+
+
+def test_render_protocolo_docx_incluye_auditoria_warnings():
+    proto = _protocolo()
+    # Modificar el protocolo para agregar warnings_auditoria
+    proto.warnings_auditoria = ["Lenguaje causal detectado.", "Posible confusión residual."]
+    data = render_protocolo_docx(proto)
+    doc = Document(io.BytesIO(data))
+    # Concatenar todo el texto del documento
+    full_text = "\n".join([p.text for p in doc.paragraphs])
+    assert "Auditoría" in full_text
+    assert "Lenguaje causal detectado." in full_text
+    assert "Posible confusión residual." in full_text
+
+
+def test_render_protocolo_docx_sin_auditoria_warnings_no_incluye_seccion():
+    proto = _protocolo()
+    proto.warnings_auditoria = []
+    data = render_protocolo_docx(proto)
+    doc = Document(io.BytesIO(data))
+    full_text = "\n".join([p.text for p in doc.paragraphs])
+    # La sección "Auditoría" no debe aparecer si warnings_auditoria está vacío
+    assert not any("Auditoría" in p.text for p in doc.paragraphs)

@@ -1,4 +1,5 @@
 from agents.bias_auditor import auditar, escanear_causal, limitaciones_aplicables, load_limitaciones
+from core.llm_client import FakeLLMClient
 
 
 def _limitaciones():
@@ -83,3 +84,17 @@ def test_auditar_devuelve_textos_de_todas_las_limitaciones_aplicables():
     lims = _limitaciones()
     textos, warnings = auditar(_ctx([]), "Texto sin lenguaje causal.", lims, llm_client=None)
     assert len(textos) >= 5  # las 5 aplica_siempre: true del catálogo
+
+
+def test_auditar_llm_confirma_causal():
+    lims = _limitaciones()
+    llm = FakeLLMClient(responses=["SI"])
+    textos, warnings = auditar(_ctx([]), "El riesgo sistémico causa el nivel de tratamiento.", lims, llm_client=llm)
+    assert any("Lenguaje causal" in w for w in warnings)
+
+
+def test_auditar_llm_descarta_falso_positivo():
+    lims = _limitaciones()
+    llm = FakeLLMClient(responses=["NO"])
+    textos, warnings = auditar(_ctx([]), "El riesgo sistémico causa el nivel de tratamiento.", lims, llm_client=llm)
+    assert not any("Lenguaje causal" in w for w in warnings)

@@ -6,6 +6,7 @@ import json
 from docx import Document
 
 from agents.novelty_checker import candidato_id
+from agents.protocol_designer import Protocolo
 
 
 def render_candidatos_md(filas: list[dict], warnings: list[str]) -> str:
@@ -62,7 +63,7 @@ _PROTO_SECCIONES = {
 }
 
 
-def render_protocolo_md(protocolo) -> str:
+def render_protocolo_md(protocolo: Protocolo) -> str:
     p = protocolo
     lines = [f"# Protocolo — {p.candidato_id}", "", "## PICOT", ""]
     for k, v in p.picot.items():
@@ -83,7 +84,7 @@ def render_protocolo_md(protocolo) -> str:
     return "\n".join(lines)
 
 
-def render_protocolo_docx(protocolo) -> bytes:
+def render_protocolo_docx(protocolo: Protocolo) -> bytes:
     """Word estructurado del protocolo, desde los mismos datos que render_protocolo_md
     (no re-parsea el .md). Devuelve bytes (en memoria)."""
     p = protocolo
@@ -118,6 +119,11 @@ def render_protocolo_docx(protocolo) -> bytes:
     doc.add_heading("Limitaciones", level=1)
     for lim in p.limitaciones:
         doc.add_paragraph(lim, style="List Bullet")
+
+    if p.warnings_auditoria:
+        doc.add_heading("Auditoría", level=1)
+        for w in p.warnings_auditoria:
+            doc.add_paragraph(w, style="List Bullet")
 
     buf = io.BytesIO()
     doc.save(buf)
