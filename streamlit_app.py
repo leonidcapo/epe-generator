@@ -29,11 +29,11 @@ def _puente_secrets_a_env() -> None:
     2026-07-24-streamlit-deploy-design.md, §3)."""
     try:
         disponibles = st.secrets
+        for k in _SECRET_KEYS:
+            if k in disponibles and k not in os.environ:
+                os.environ[k] = str(disponibles[k])
     except Exception:
         return  # sin secrets.toml (p.ej. corrida local con .env) — no es un error
-    for k in _SECRET_KEYS:
-        if k in disponibles and k not in os.environ:
-            os.environ[k] = str(disponibles[k])
 
 
 def _cliente_llm_o_none():

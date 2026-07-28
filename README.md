@@ -37,9 +37,9 @@ python orchestrator.py report <candidato_id> <ruta_resultados_xlsx>  # resultado
 
 ## Deploy en Streamlit Community Cloud
 
-La UI (`streamlit_app.py`) corre solo la fase `propose` en la nube. `perfilar` (necesita la
-credencial de Google con acceso al Sheet EPE, que contiene PHI real) queda **exclusivamente
-local** — su credencial nunca sube a los secrets de Streamlit Cloud.
+La UI (`streamlit_app.py`) corre **todas las cuatro fases** (`propose`, `design`, `analyze`, `report`)
+en la nube. `perfilar` (necesita la credencial de Google con acceso al Sheet EPE, que contiene PHI
+real) queda **exclusivamente local** — su credencial nunca sube a los secrets de Streamlit Cloud.
 
 1. Corre `python orchestrator.py perfilar` en tu máquina para producir
    `knowledge/perfil_epe.yaml`.
@@ -56,8 +56,9 @@ local** — su credencial nunca sube a los secrets de Streamlit Cloud.
    desplegada tiene una URL pública y el formulario de login no tiene límite de intentos,
    así que un atacante puede probar credenciales sin restricción). **Nunca** pegues
    `GOOGLE_SERVICE_ACCOUNT_JSON` ni `EPE_SHEET_ID` ahí.
-4. La app queda tras login. Flujo: `perfilar` local → subes `perfil_epe.yaml` en la app →
-   `propose` → descargas `candidatos.md`/`.json`.
+4. La app queda tras login. Flujo: `perfilar` local → subes `perfil_epe.yaml` en Propose →
+   generas `candidatos.md`/`.json` → los usas en Design (protocolo), Analyze (sintaxis Stata),
+   o Report (informe final con resultados) → descargas los artefactos correspondientes.
 
 La app es sin estado: no persiste nada en el servidor entre subidas.
 
