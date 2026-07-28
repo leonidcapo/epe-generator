@@ -49,7 +49,8 @@ def limitaciones_aplicables(ctx: dict, limitaciones: list[Limitacion]) -> list[L
 
 
 _MARCADORES_CAUSALES = [
-    "causa", "provoca", "efecto de", "produce", "genera un aumento",
+    "causa", "causo", "causó", "causaron", "causó", "causó",
+    "provoca", "efecto de", "produce", "genera un aumento",
     "debido a", "conlleva a", "da lugar a",
 ]
 _NEGACIONES_CAUSALES = [
