@@ -32,6 +32,7 @@ python orchestrator.py perfilar                    # Sheet EPE (vivo) -> knowled
 python orchestrator.py propose                     # perfil + plantilla -> outputs/<timestamp>/candidatos.{md,json}
 python orchestrator.py design <candidato_id>       # candidatos.json + LLM → outputs/<run_id>/protocolo.md + protocolo.docx
 python orchestrator.py analyze <candidato_id>      # candidatos.json -> outputs/<run_id>/analisis.do (sintaxis Stata determinística)
+python orchestrator.py report <candidato_id> <ruta_resultados_xlsx>  # resultados.xlsx (del estadístico) → outputs/<run_id>/articulo.md (informe final)
 ```
 
 ## Deploy en Streamlit Community Cloud
@@ -77,13 +78,15 @@ python -m pytest -q
 Corre **sin red, sin credenciales de Google y sin API keys** (fixtures sintéticos en
 `tests/fixtures/`).
 
-## Fuera de alcance (v1)
+## Ciclo completo (v1)
 
-La fase `design` ya está implementada: lee el más reciente `candidatos.json` de `outputs/`,
-diseña el protocolo con validación metodológica (auditoría de sesgos, lenguaje causal), y
-genera `protocolo.md` y `protocolo.docx` en un nuevo directorio timestamped dentro de `outputs/`.
-La fase `analyze` también está implementada: lee `candidatos.json` y genera sintaxis Stata
-determinística (`analisis.do`) sin datos reales ni LLM.
-Fase `report` (informe final) queda pendiente, igual que `endes-generator` la escalonó. Una
-semilla que el usuario valide se lleva manualmente, ya formulada, a `nucleo` si quiere respaldo
+El ciclo de cuatro fases está implementado:
+
+1. **`perfilar`**: Lee el Sheet EPE (vivo, con PHI) y produce el perfil agregado.
+2. **`propose`**: Genera semillas de ideas (candidatos) desde el perfil.
+3. **`design`**: Diseña el protocolo ex ante con validación metodológica (auditoría de sesgos, lenguaje causal).
+4. **`analyze`**: Genera sintaxis Stata determinística para análisis.
+5. **`report`**: Lee el archivo de resultados y genera el informe final (`articulo.md`).
+
+Una semilla que el usuario valide se lleva manualmente, ya formulada, a `nucleo` si quiere respaldo
 de revisión de literatura — este sistema nunca alimenta el motor de `nucleo` directamente.

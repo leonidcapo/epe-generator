@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+import openpyxl
 
 from core.knowledge import load_perfil, guardar_perfil, Perfil
 from core.sheets_client import FakeSheetReader
@@ -41,6 +42,24 @@ def _copiar_limitaciones(tmp_path):
     (tmp_path / "knowledge").mkdir(exist_ok=True)
     shutil.copy(repo_root / "knowledge" / "limitaciones_epe.yaml",
                 tmp_path / "knowledge" / "limitaciones_epe.yaml")
+
+
+def _resultados_xlsx_valido(tmp_path):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "descriptivos"
+    ws.append([None, "nivel_tratamiento_requerido"])
+    ws.append(["b", 2.34])
+    ws.append(["ll", 2.10])
+    ws.append(["ul", 2.58])
+    ws2 = wb.create_sheet("modelo")
+    ws2.append([None, "riesgo_sistemico_asa"])
+    ws2.append(["b", 1.87])
+    ws2.append(["ll", 1.20])
+    ws2.append(["ul", 2.91])
+    path = tmp_path / "resultados.xlsx"
+    wb.save(path)
+    return str(path)
 
 
 def test_run_perfilar_ok_escribe_perfil(tmp_path, monkeypatch):
@@ -302,4 +321,78 @@ def test_cmd_analyze_escribe_do(tmp_path, monkeypatch):
     exit_code = orchestrator.main(["analyze", "abc"])
     assert exit_code == 0
     archivos = list((tmp_path / "outputs").glob("*/analisis.do"))
+    assert len(archivos) == 1
+
+
+def test_run_report_encuentra_candidato_y_genera_articulo(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidato_data = {
+        "id": "riesgo_sistemico_asa_asa3_alto_riesgo_nivel_tratamiento_requerido_adj_farmacoterapia_polifarmacia",
+        "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": ["farmacoterapia_polifarmacia"],
+        "n_disponible": 1350, "novedad": 1.0, "score_llm": 8.0,
+    }
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([candidato_data]), encoding="utf-8")
+    xlsx_path = _resultados_xlsx_valido(tmp_path)
+    r = orchestrator.run_report(candidato_data["id"], xlsx_path)
+    assert r.ok
+    assert "riesgo_sistemico_asa" in r.data.resultados
+
+
+def test_run_report_candidato_no_encontrado(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([]), encoding="utf-8")
+    xlsx_path = _resultados_xlsx_valido(tmp_path)
+    r = orchestrator.run_report("no_existe", xlsx_path)
+    assert not r.ok
+
+
+def test_run_report_xlsx_invalido_falla(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidato_data = {
+        "id": "abc", "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": [],
+        "n_disponible": 100, "novedad": 1.0, "score_llm": 8.0,
+    }
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([candidato_data]), encoding="utf-8")
+    wb = openpyxl.Workbook()
+    wb.active.title = "descriptivos"
+    xlsx_path = tmp_path / "resultados_incompleto.xlsx"
+    wb.save(xlsx_path)
+    r = orchestrator.run_report("abc", str(xlsx_path))
+    assert not r.ok
+
+
+def test_cmd_report_escribe_articulo(tmp_path, monkeypatch):
+    import orchestrator
+    _copiar_plantilla(tmp_path)
+    _copiar_limitaciones(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    candidato_data = {
+        "id": "abc", "eje": "riesgo_sistemico_asa", "subpoblacion": "asa3_alto_riesgo",
+        "outcome": "nivel_tratamiento_requerido", "covariables_ajuste": ["farmacoterapia_polifarmacia"],
+        "n_disponible": 1350, "novedad": 1.0, "score_llm": 8.0,
+    }
+    out_dir = tmp_path / "outputs" / "20260728-000000"
+    out_dir.mkdir(parents=True)
+    (out_dir / "candidatos.json").write_text(json.dumps([candidato_data]), encoding="utf-8")
+    xlsx_path = _resultados_xlsx_valido(tmp_path)
+    exit_code = orchestrator.main(["report", "abc", xlsx_path])
+    assert exit_code == 0
+    archivos = list((tmp_path / "outputs").glob("*/articulo.md"))
     assert len(archivos) == 1

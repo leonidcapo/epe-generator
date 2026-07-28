@@ -7,17 +7,20 @@ import time
 from pathlib import Path
 
 from agents.bias_auditor import load_limitaciones
+from agents.executor import parsear_resultados
 from agents.gap_finder import filtrar_factibilidad, generar_espacio, rankear
 from agents.novelty_checker import Candidato
 from agents.perfilador import perfilar
 from agents.protocol_designer import disenar_protocolo
 from agents.statistician import generar_do
+from agents.writer import redactar_articulo
 from core.knowledge import guardar_perfil, load_perfil, load_plantilla
 from core.llm_client import make_client
 from core.pubmed_client import make_pubmed_client
 from core.result import AgentResult
 from core.sheets_client import GspreadSheetReader, SheetReader
-from ui_render import render_candidatos_json, render_candidatos_md, render_protocolo_docx, render_protocolo_md
+from ui_render import (render_articulo_md, render_candidatos_json, render_candidatos_md,
+                       render_protocolo_docx, render_protocolo_md)
 
 
 def run_perfilar(reader: SheetReader, plantilla_path: str = "knowledge/plantilla_epe.yaml",
@@ -98,6 +101,27 @@ def run_analyze(candidato_id_buscado: str,
         return AgentResult.failure(errores)
     plantilla = load_plantilla(plantilla_path)
     return AgentResult.success(generar_do(candidato, plantilla))
+
+
+def run_report(candidato_id_buscado: str, resultados_xlsx_path: str,
+               plantilla_path: str = "knowledge/plantilla_epe.yaml",
+               limitaciones_path: str = "knowledge/limitaciones_epe.yaml") -> AgentResult:
+    candidato, errores = _localizar_candidato(candidato_id_buscado)
+    if candidato is None:
+        return AgentResult.failure(errores)
+    resultado_parse = parsear_resultados(resultados_xlsx_path)
+    if not resultado_parse.ok:
+        return resultado_parse
+    plantilla = load_plantilla(plantilla_path)
+    limitaciones = load_limitaciones(limitaciones_path)
+    llm = _make_llm_client_or_none()
+    articulo_result = redactar_articulo(candidato, plantilla, resultado_parse.data,
+                                        limitaciones, llm)
+    return AgentResult(
+        ok=articulo_result.ok,
+        data=articulo_result.data,
+        warnings=[*resultado_parse.warnings, *articulo_result.warnings],
+    )
 
 
 def _make_llm_client_or_none():
@@ -192,6 +216,22 @@ def _cmd_analyze(candidato_id_arg: str) -> int:
     return 0
 
 
+def _cmd_report(candidato_id_arg: str, resultados_xlsx_arg: str) -> int:
+    r = run_report(candidato_id_arg, resultados_xlsx_arg)
+    if not r.ok:
+        for w in r.warnings:
+            print(f"  aviso: {w}", file=sys.stderr)
+        return 1
+    run_id = time.strftime("%Y%m%d-%H%M%S")
+    out_dir = Path("outputs") / run_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "articulo.md").write_text(render_articulo_md(r.data), encoding="utf-8")
+    print(f"Escrito: {out_dir / 'articulo.md'}")
+    for w in r.warnings:
+        print(f"  aviso: {w}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     try:
         from dotenv import load_dotenv
@@ -206,8 +246,10 @@ def main(argv: list[str]) -> int:
         return _cmd_design(argv[1])
     if len(argv) >= 2 and argv[0] == "analyze":
         return _cmd_analyze(argv[1])
-    print("uso: python orchestrator.py perfilar | propose | design <id> | analyze <id>",
-          file=sys.stderr)
+    if len(argv) >= 3 and argv[0] == "report":
+        return _cmd_report(argv[1], argv[2])
+    print("uso: python orchestrator.py perfilar | propose | design <id> | analyze <id> | "
+          "report <id> <resultados.xlsx>", file=sys.stderr)
     return 2
 
 
